@@ -1,0 +1,1456 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full select-none">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>El Jabatazo Runner 🐗🍻</title>
+  
+  <!-- SEO & Social Meta Tags -->
+  <meta name="description" content="¡Esquiva botellines de cerveza y coches de policía con el jabalí peñista en El Jabatazo Runner! Juego estilo Chrome Dino." />
+  <meta name="theme-color" content="#0f172a" />
+
+  <!-- Google Fonts & Tailwind CSS CDN -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800;900&family=Press+Start+2P&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Firebase Compatibility SDKs (v9 CDN) -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            arcade: ['"Press Start 2P"', 'monospace'],
+            sans: ['"Outfit"', 'sans-serif'],
+          },
+          animation: {
+            'pulse-fast': 'pulse 0.8s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            'bounce-subtle': 'bounceSubtle 1.5s infinite',
+            'glow': 'glow 2s ease-in-out infinite alternate',
+          },
+          keyframes: {
+            bounceSubtle: {
+              '0%, 100%': { transform: 'translateY(-3%)' },
+              '50%': { transform: 'translateY(3%)' },
+            },
+            glow: {
+              '0%': { filter: 'drop-shadow(0 0 10px rgba(245, 158, 11, 0.6))' },
+              '100%': { filter: 'drop-shadow(0 0 25px rgba(239, 68, 68, 0.9))' },
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Prevent text selection and unwanted mobile gestures */
+    * {
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+    }
+
+    html, body {
+      background-color: #0f172a;
+      overflow: hidden;
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+    }
+
+    .font-arcade {
+      font-family: 'Press Start 2P', monospace;
+    }
+
+    /* Custom Glassmorphism Cards */
+    .glass-card {
+      background: rgba(15, 23, 42, 0.88);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 2px solid rgba(255, 255, 255, 0.12);
+    }
+
+    /* Scrollbar for Leaderboard */
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: rgba(15, 23, 42, 0.6);
+      border-radius: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #f59e0b;
+      border-radius: 4px;
+    }
+
+    /* Pantalla Completa en Móviles sin Marco */
+    @media (max-width: 768px) {
+      #game-wrapper {
+        padding: 0 !important;
+        max-width: 100vw !important;
+        max-height: 100vh !important;
+        width: 100vw !important;
+        height: 100vh !important;
+      }
+      #canvas-container {
+        border-radius: 0 !important;
+        border: none !important;
+        box-shadow: none !important;
+      }
+    }
+  </style>
+</head>
+
+<body class="h-full w-full flex flex-col items-center justify-center font-sans text-white overflow-hidden">
+
+  <!-- MAIN GAME CONTAINER -->
+  <div id="game-wrapper" class="relative w-full h-full max-w-5xl max-h-[720px] flex flex-col items-center justify-center p-2 sm:p-4">
+    
+    <!-- CANVAS FRAME -->
+    <div id="canvas-container" class="relative w-full h-full rounded-2xl overflow-hidden shadow-2xl border-4 border-slate-700/60 bg-slate-900 flex flex-col items-center justify-center">
+      
+      <!-- HTML5 CANVAS -->
+      <canvas id="gameCanvas" class="w-full h-full block bg-slate-900 cursor-pointer"></canvas>
+
+      <!-- HUD OVERLAY (ALWAYS ACTIVE IN GAME) -->
+      <div id="hud" class="absolute top-0 left-0 w-full p-4 flex justify-between items-start pointer-events-none hidden">
+        <!-- Player Info & Controls -->
+        <div class="flex items-center gap-3 bg-slate-900/80 backdrop-blur-md px-4 py-2 rounded-xl border border-slate-700/60 shadow-lg pointer-events-auto">
+          <span class="text-2xl">🐗</span>
+          <div>
+            <div id="hud-player-name" class="font-bold text-amber-400 text-sm tracking-wide">Jugador</div>
+            <div id="hud-high-score" class="font-arcade text-[10px] text-slate-400">RÉCORD: 00000</div>
+          </div>
+        </div>
+
+        <!-- Real-time Score Counter -->
+        <div class="flex flex-col items-end gap-2">
+          <div class="bg-slate-900/90 backdrop-blur-md px-5 py-2.5 rounded-xl border-2 border-amber-500/80 shadow-[0_0_15px_rgba(245,158,11,0.3)]">
+            <div id="hud-score" class="font-arcade text-2xl sm:text-3xl text-amber-400 tracking-wider">00000</div>
+          </div>
+          <!-- Sound Toggle Button -->
+          <button id="btn-audio-toggle" class="pointer-events-auto bg-slate-800/90 hover:bg-slate-700 text-slate-300 p-2 rounded-lg border border-slate-600 transition shadow text-xs flex items-center gap-1.5" title="Activar/Desactivar Sonido">
+            <span id="audio-icon">🔊</span>
+            <span id="audio-label" class="font-semibold hidden sm:inline">Sonido</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- ON-SCREEN CONTROLS HINT (PEQUEÑO ABAJO POR DEBAJO DEL SUELO) -->
+      <div id="controls-hint" class="absolute bottom-1 sm:bottom-1.5 left-1/2 -translate-x-1/2 bg-slate-950/90 backdrop-blur-sm px-3 py-0.5 rounded-full border border-slate-800/80 text-slate-400 text-[10px] sm:text-[11px] font-medium tracking-tight flex items-center gap-1.5 pointer-events-none hidden transition-opacity duration-500 z-20">
+        <span>Pulsa <kbd class="px-1.5 py-0.2 bg-slate-800 text-amber-400 rounded text-[9px] font-arcade">ESPACIO</kbd> o <span class="text-amber-400 font-semibold">TOCA PANTALLA</span> para saltar</span>
+      </div>
+
+      <!-- 1. PANTALLA INICIAL (MODAL DE BIENVENIDA) -->
+      <div id="modal-welcome" class="absolute inset-0 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md z-30 transition-all duration-300">
+        <div class="glass-card max-w-md w-full rounded-3xl p-6 sm:p-8 text-center shadow-2xl border-2 border-amber-500/40 relative overflow-hidden">
+          <!-- Festive Title Header -->
+          <div class="inline-block px-3 py-1 bg-amber-500/20 text-amber-400 font-bold text-xs uppercase tracking-widest rounded-full mb-3 border border-amber-500/30">
+            ¡Peña El Jabatazo!
+          </div>
+          <h1 class="text-3xl sm:text-4xl font-black tracking-tight text-white mb-2 font-arcade text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-orange-400 to-red-500 animate-glow">
+            EL JABATAZO RUNNER
+          </h1>
+          <p class="text-slate-300 text-sm mb-6 font-medium leading-relaxed">
+            Ayuda a nuestro jabalí peñista a esquivar botellines de cerveza y patrullas de policía en su carrera infinita.
+          </p>
+
+          <!-- Avatar Illustration -->
+          <div class="my-4 flex justify-center items-center gap-3">
+            <div class="w-16 h-16 rounded-2xl bg-amber-500/20 border-2 border-amber-400/50 flex items-center justify-center text-4xl shadow-inner animate-bounce-subtle">
+              🐗
+            </div>
+            <span class="text-xl font-bold text-amber-400">VS</span>
+            <div class="w-16 h-16 rounded-2xl bg-red-500/20 border-2 border-red-400/50 flex items-center justify-center text-3xl shadow-inner">
+              🍻 🚓
+            </div>
+          </div>
+
+          <!-- Input Form -->
+          <form id="form-welcome" class="space-y-4 text-left mt-6">
+            <div>
+              <label for="player-name-input" class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
+                Tu Nombre / Apodo Peñista:
+              </label>
+              <input 
+                type="text" 
+                id="player-name-input" 
+                maxlength="15" 
+                required 
+                placeholder="Ej: JabalíFiestero" 
+                class="w-full px-4 py-3 rounded-xl bg-slate-900/90 border-2 border-slate-700 text-white font-bold placeholder-slate-500 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/30 transition text-base"
+              />
+            </div>
+
+            <button 
+              type="submit" 
+              id="btn-start"
+              class="w-full py-4 px-6 rounded-xl bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 hover:from-amber-400 hover:to-red-400 text-slate-950 font-black text-lg uppercase tracking-wider font-arcade shadow-[0_0_20px_rgba(245,158,11,0.5)] transition hover:scale-[1.02] active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2"
+            >
+              <span>¡A CORRER!</span>
+              <span class="text-2xl">💨</span>
+            </button>
+          </form>
+          
+          <div class="mt-4 text-[11px] text-slate-400 text-center">
+            Móvil: Toca pantalla | PC: Espacio o Flecha Arriba
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. PANTALLA DE GAME OVER & RANKING GLOBAL -->
+      <div id="modal-gameover" class="absolute inset-0 flex items-center justify-center p-3 sm:p-4 bg-slate-950/90 backdrop-blur-md z-40 hidden">
+        <div class="glass-card max-w-lg w-full rounded-3xl p-5 sm:p-6 text-center shadow-2xl border-2 border-red-500/50 max-h-[92vh] flex flex-col justify-between overflow-hidden">
+          
+          <!-- Header -->
+          <div class="shrink-0">
+            <div class="text-3xl sm:text-4xl mb-1">💥🐗😵</div>
+            <h2 class="text-2xl sm:text-3xl font-black text-red-500 font-arcade tracking-tight">
+              ¡TE HAN PILLADO!
+            </h2>
+            <p class="text-slate-400 text-xs mt-0.5">Fin de la carrera peñista</p>
+          </div>
+
+          <!-- Score Summary Box -->
+          <div class="my-3 py-3 px-4 bg-slate-900/90 rounded-2xl border border-slate-700/80 flex items-center justify-around shrink-0">
+            <div>
+              <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Puntuación</div>
+              <div id="final-score" class="font-arcade text-2xl sm:text-3xl text-amber-400">00000</div>
+            </div>
+            <div class="h-8 w-px bg-slate-700"></div>
+            <div>
+              <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Mejor Récord</div>
+              <div id="final-high-score" class="font-arcade text-xl sm:text-2xl text-emerald-400">00000</div>
+            </div>
+          </div>
+
+          <!-- Retry Button -->
+          <div class="shrink-0 mb-3">
+            <button 
+              id="btn-restart"
+              class="w-full py-3.5 px-6 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-slate-950 font-black text-base uppercase tracking-wider font-arcade shadow-[0_0_20px_rgba(16,185,129,0.4)] transition hover:scale-[1.02] active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2"
+            >
+              <span>🔄 REINTENTAR</span>
+            </button>
+          </div>
+
+          <!-- Leaderboard Section -->
+          <div class="flex-1 min-h-0 flex flex-col text-left bg-slate-900/80 rounded-2xl p-3 border border-slate-700/60">
+            <div class="flex items-center justify-between mb-2 pb-1.5 border-b border-slate-700/80 shrink-0">
+              <div class="flex items-center gap-1.5">
+                <span class="text-amber-400">🏆</span>
+                <h3 class="font-bold text-sm text-slate-200 uppercase tracking-wide font-arcade">TOP 10 RÉCORDS GLOBAL</h3>
+              </div>
+              <span id="db-status-badge" class="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                En vivo
+              </span>
+            </div>
+
+            <!-- Table Header -->
+            <div class="grid grid-cols-12 text-[10px] font-bold text-slate-400 px-2 py-1 uppercase tracking-wider shrink-0 bg-slate-950/40 rounded-lg">
+              <span class="col-span-2">Pos</span>
+              <span class="col-span-6">Jugador</span>
+              <span class="col-span-4 text-right">Puntos</span>
+            </div>
+
+            <!-- Table List -->
+            <div id="leaderboard-list" class="custom-scrollbar overflow-y-auto flex-1 divide-y divide-slate-800 text-xs sm:text-sm font-medium mt-1">
+              <div class="text-center text-slate-500 py-4 italic text-xs">Cargando clasificación...</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- JAVASCRIPT GAME LOGIC ENGINE -->
+  <script>
+    /* ==========================================================================
+       1. CONFIGURACIÓN DE FIREBASE REALTIME DATABASE (CON FALLBACK LOCAL)
+       ========================================================================== */
+    const firebaseConfig = {
+      apiKey: "TU_API_KEY",
+      authDomain: "TU_PROYECTO.firebaseapp.com",
+      databaseURL: "https://TU_PROYECTO-default-rtdb.firebaseio.com",
+      projectId: "TU_PROYECTO",
+      storageBucket: "TU_PROYECTO.appspot.com",
+      messagingSenderId: "123456789",
+      appId: "1:123456789:web:abc123def456"
+    };
+
+    let isFirebaseActive = false;
+    let database = null;
+
+    // Intentar inicializar Firebase si no son credenciales por defecto
+    try {
+      if (firebaseConfig.apiKey && firebaseConfig.apiKey !== "TU_API_KEY" && window.firebase) {
+        firebase.initializeApp(firebaseConfig);
+        database = firebase.database();
+        isFirebaseActive = true;
+        console.log("🔥 Firebase Realtime Database conectado exitosamente.");
+      } else {
+        console.log("ℹ️ Firebase no configurado (modo predeterminado). Se usará almacenamiento local localStorage.");
+      }
+    } catch (e) {
+      console.warn("⚠️ No se pudo inicializar Firebase:", e.message);
+      isFirebaseActive = false;
+    }
+
+    /* ==========================================================================
+       2. MOTOR DE SONIDO (WEB AUDIO API - SINTETIZADOR RETRO 8-BIT)
+       ========================================================================== */
+    class RetroSoundEngine {
+      constructor() {
+        this.ctx = null;
+        this.muted = false;
+      }
+
+      init() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          if (AudioContext) {
+            this.ctx = new AudioContext();
+          }
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+
+      playJump() {
+        if (this.muted || !this.ctx) return;
+        try {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'square';
+          osc.frequency.setValueAtTime(150, this.ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(600, this.ctx.currentTime + 0.15);
+          
+          gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+          gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
+          
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          
+          osc.start();
+          osc.stop(this.ctx.currentTime + 0.15);
+        } catch(e){}
+      }
+
+      playScoreMilestone() {
+        if (this.muted || !this.ctx) return;
+        try {
+          const now = this.ctx.currentTime;
+          [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(freq, now + i * 0.06);
+            gain.gain.setValueAtTime(0.12, now + i * 0.06);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.06 + 0.08);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(now + i * 0.06);
+            osc.stop(now + i * 0.06 + 0.08);
+          });
+        } catch(e){}
+      }
+
+      playGameOver() {
+        if (this.muted || !this.ctx) return;
+        try {
+          const now = this.ctx.currentTime;
+          // Ruido de choque + tono descendente
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(300, now);
+          osc.frequency.exponentialRampToValueAtTime(40, now + 0.4);
+
+          gain.gain.setValueAtTime(0.25, now);
+          gain.gain.linearRampToValueAtTime(0.01, now + 0.4);
+
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start();
+          osc.stop(now + 0.4);
+        } catch(e){}
+      }
+    }
+
+    const soundEngine = new RetroSoundEngine();
+
+    /* ==========================================================================
+       3. MOTOR DE JUEGO (CANVAS API & FISICA)
+       ========================================================================== */
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // Elementos DOM
+    const modalWelcome = document.getElementById('modal-welcome');
+    const modalGameOver = document.getElementById('modal-gameover');
+    const formWelcome = document.getElementById('form-welcome');
+    const playerNameInput = document.getElementById('player-name-input');
+    const hud = document.getElementById('hud');
+    const hudPlayerName = document.getElementById('hud-player-name');
+    const hudHighScore = document.getElementById('hud-high-score');
+    const hudScore = document.getElementById('hud-score');
+    const controlsHint = document.getElementById('controls-hint');
+    const finalScoreEl = document.getElementById('final-score');
+    const finalHighScoreEl = document.getElementById('final-high-score');
+    const btnRestart = document.getElementById('btn-restart');
+    const btnAudioToggle = document.getElementById('btn-audio-toggle');
+    const audioIcon = document.getElementById('audio-icon');
+    const dbStatusBadge = document.getElementById('db-status-badge');
+    const leaderboardList = document.getElementById('leaderboard-list');
+
+    // Dimensiones virtuales constantes del Canvas para resoluciones nítidas
+    const VIRTUAL_WIDTH = 1000;
+    const VIRTUAL_HEIGHT = 450;
+    const GROUND_Y = 370;
+
+    function resizeCanvas() {
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = VIRTUAL_WIDTH;
+      canvas.height = VIRTUAL_HEIGHT;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    // Estado del juego
+    let gameState = 'WELCOME'; // WELCOME, PLAYING, GAMEOVER
+    let playerName = localStorage.getItem('jabatazo_player_name') || '';
+    let highScore = parseInt(localStorage.getItem('jabatazo_high_score') || '0', 10);
+
+    let score = 0;
+    let distance = 0;
+    let gameSpeed = 4.5;
+    let lastTime = 0;
+    let milestoneCounter = 0;
+
+    // Personaje Jabalí (Impulso ajustado para superar holgadamente los coches de policía)
+    const boar = {
+      x: 110,
+      y: GROUND_Y - 60,
+      width: 190,
+      height: 60,
+      vy: 0,
+      gravity: 0.44,
+      jumpForce: -15.5,
+      isGrounded: true,
+      canDoubleJump: true,
+      legCycle: 0,
+      dustParticles: []
+    };
+
+    // Obstáculos y fondo
+    let obstacles = [];
+    let obstacleTimer = 0;
+    let minObstacleInterval = 120;
+    let particles = [];
+    let bgStars = [];
+    let bgMountains = [];
+
+    // Inicializar estrellas y montañas del fondo
+    for (let i = 0; i < 40; i++) {
+      bgStars.push({
+        x: Math.random() * VIRTUAL_WIDTH,
+        y: Math.random() * (GROUND_Y - 120),
+        size: Math.random() * 2.5 + 0.5,
+        alpha: Math.random() * 0.8 + 0.2
+      });
+    }
+
+    for (let i = 0; i < 6; i++) {
+      bgMountains.push({
+        x: i * 220,
+        height: 60 + Math.random() * 50,
+        width: 240
+      });
+    }
+
+    // Cargar nombre previo si existe
+    if (playerName) {
+      playerNameInput.value = playerName;
+    }
+
+    /* ==========================================================================
+       CONFIGURACIÓN DE IMÁGENES / SPRITES PERSONALIZADOS (OPCIONAL)
+       Si quieres usar tus propias imágenes (PNG/SVG/WebP), indica la ruta o URL aquí:
+       ========================================================================== */
+    const CUSTOM_ASSETS = {
+      // 1. Imagen del Jabalí / Personaje
+      boarUrl: 'mi_jabali.webp', 
+      boarWidth: 190, // Ancho fijado a 190px para el jabalí
+      boarHeight: 0,  // Opcional: Alto personalizado en px. Dejar 0 para auto (60px)
+      
+      // 2. Imagen de la cerveza (botellín) - Doble anchura (104px)
+      beerUrl: 'botellin.webp', 
+      beerWidth: 104,
+      
+      // 3. Imagen del obstáculo de Ron Barceló - Doble anchura (108px)
+      rumUrl: 'barcelo.webp',
+      rumWidth: 108,
+
+      // 4. Imagen del obstáculo de policía / guardia
+      policeUrl: 'guardia.webp',
+      policeWidth: 200, // Ancho de 200px para el guardia / coche
+      policeHeight: 0,  // Opcional: Alto personalizado en px. Dejar 0 para auto
+
+      // 5. Imagen del obstáculo aéreo (Helicóptero) - Tamaño triplicado (320px)
+      helicopterUrl: 'helicoptero.webp',
+      helicopterWidth: 320,
+
+      // 6. Imagen de Fondo / Escenario
+      backgroundUrl: 'fondo_encinar.webp'
+    };
+
+    // Objetos Image
+    const customBoarImg = new Image();
+    if (CUSTOM_ASSETS.boarUrl) customBoarImg.src = CUSTOM_ASSETS.boarUrl;
+
+    const customBeerImg = new Image();
+    if (CUSTOM_ASSETS.beerUrl) customBeerImg.src = CUSTOM_ASSETS.beerUrl;
+
+    const customRumImg = new Image();
+    if (CUSTOM_ASSETS.rumUrl) customRumImg.src = CUSTOM_ASSETS.rumUrl;
+
+    const customPoliceImg = new Image();
+    if (CUSTOM_ASSETS.policeUrl) customPoliceImg.src = CUSTOM_ASSETS.policeUrl;
+
+    const customHelicopterImg = new Image();
+    if (CUSTOM_ASSETS.helicopterUrl) customHelicopterImg.src = CUSTOM_ASSETS.helicopterUrl;
+
+    const customPlaneImg = new Image();
+    if (CUSTOM_ASSETS.planeUrl) customPlaneImg.src = CUSTOM_ASSETS.planeUrl;
+
+    const customBgImg = new Image();
+    if (CUSTOM_ASSETS.backgroundUrl) customBgImg.src = CUSTOM_ASSETS.backgroundUrl;
+
+    /* ==========================================================================
+       4. DIBUJO PROCEDURAL EN CANVAS (PIXEL ART Y RENDER)
+       ========================================================================== */
+
+    // Dibujar Jabalí
+    function drawBoar(b, state) {
+      ctx.save();
+      ctx.translate(b.x, b.y);
+
+      // Si se ha especificado una imagen personalizada del jabalí, dibujarla respetando su proporción natural
+      if (CUSTOM_ASSETS.boarUrl && customBoarImg.complete && customBoarImg.naturalWidth !== 0) {
+        // Relación de aspecto natural de la imagen subida (ancho / alto)
+        const imgRatio = customBoarImg.naturalWidth / customBoarImg.naturalHeight;
+        
+        // Si el usuario especificó dimensiones explícitas las usamos; de lo contrario, fijamos 190px de anchura
+        const renderH = CUSTOM_ASSETS.boarHeight || 60;
+        const renderW = CUSTOM_ASSETS.boarWidth || Math.max(190, Math.round(renderH * imgRatio));
+
+        if (!b.isGrounded) {
+          const shadowScale = Math.max(0.3, 1 - (GROUND_Y - 60 - b.y) / 200);
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+          ctx.beginPath();
+          ctx.ellipse(renderW / 2, GROUND_Y - b.y + 5, 25 * shadowScale, 8 * shadowScale, 0, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        
+        // Dibujar la imagen asentada en el suelo con sus proporciones reales impecables
+        ctx.drawImage(customBoarImg, 0, b.height - renderH, renderW, renderH);
+        ctx.restore();
+        return;
+      }
+
+      // Sombra en el suelo si está saltando
+      if (!b.isGrounded) {
+        const shadowScale = Math.max(0.3, 1 - (GROUND_Y - 60 - b.y) / 200);
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+        ctx.beginPath();
+        ctx.ellipse(b.width / 2, GROUND_Y - b.y + 5, 25 * shadowScale, 8 * shadowScale, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Cuerpo principal (Marrón Oscuro / Jabalí)
+      ctx.fillStyle = '#4a2810'; // Marrón pelo jabalí
+      ctx.beginPath();
+      ctx.roundRect(10, 12, 45, 34, [15, 20, 10, 10]);
+      ctx.fill();
+
+      // Cresta de cerdas oscuras en el lomo
+      ctx.fillStyle = '#261204';
+      for (let i = 10; i < 42; i += 6) {
+        ctx.beginPath();
+        ctx.moveTo(i, 12);
+        ctx.lineTo(i + 3, 3);
+        ctx.lineTo(i + 6, 12);
+        ctx.fill();
+      }
+
+      // Cabeza y Hocico
+      ctx.fillStyle = '#5c3314';
+      ctx.beginPath();
+      ctx.roundRect(35, 10, 26, 30, [10, 15, 15, 8]);
+      ctx.fill();
+
+      // Hocico rosado de jabalí
+      ctx.fillStyle = '#d9777f';
+      ctx.beginPath();
+      ctx.roundRect(55, 22, 12, 14, [4, 6, 6, 4]);
+      ctx.fill();
+      // Orificios del hocico
+      ctx.fillStyle = '#6b2128';
+      ctx.fillRect(62, 25, 2.5, 3);
+      ctx.fillRect(62, 30, 2.5, 3);
+
+      // Colmillo de Marfil característico 🦷
+      ctx.fillStyle = '#fffbeb';
+      ctx.beginPath();
+      ctx.moveTo(50, 32);
+      ctx.quadraticCurveTo(56, 32, 58, 22);
+      ctx.quadraticCurveTo(53, 28, 49, 34);
+      ctx.fill();
+
+      // Oreja
+      ctx.fillStyle = '#3a1e0a';
+      ctx.beginPath();
+      ctx.moveTo(34, 12);
+      ctx.lineTo(28, 2);
+      ctx.lineTo(40, 10);
+      ctx.fill();
+
+      // Pañuelo de Peña Festivo Rojo en el cuello 🧣🍻
+      ctx.fillStyle = '#ef4444';
+      ctx.beginPath();
+      ctx.moveTo(32, 34);
+      ctx.lineTo(46, 34);
+      ctx.lineTo(42, 48);
+      ctx.fill();
+      // Nudo pañuelo
+      ctx.fillStyle = '#b91c1c';
+      ctx.fillRect(36, 33, 6, 6);
+
+      // Ojo (Animado / Mareado si Game Over)
+      if (state === 'GAMEOVER') {
+        // Ojo X mareado
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.moveTo(42, 18); ctx.lineTo(48, 24);
+        ctx.moveTo(48, 18); ctx.lineTo(42, 24);
+        ctx.stroke();
+      } else {
+        // Ojo expresivo con destello
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(45, 20, 4.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#0f172a';
+        ctx.beginPath();
+        ctx.arc(46, 20, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(47, 19, 1, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Patas con animación de carrera
+      ctx.fillStyle = '#261204';
+      const legOffset = Math.sin(b.legCycle) * 12;
+
+      if (b.isGrounded && state === 'PLAYING') {
+        // Pata trasera 1
+        ctx.fillRect(16 + legOffset, 44, 7, 16);
+        // Pata trasera 2
+        ctx.fillRect(26 - legOffset, 44, 7, 16);
+        // Pata delantera 1
+        ctx.fillRect(38 - legOffset, 44, 7, 16);
+        // Pata delantera 2
+        ctx.fillRect(48 + legOffset, 44, 7, 16);
+      } else {
+        // Patas encogidas en el aire o parado
+        ctx.fillRect(18, 44, 7, 12);
+        ctx.fillRect(26, 44, 7, 10);
+        ctx.fillRect(40, 44, 7, 10);
+        ctx.fillRect(48, 44, 7, 12);
+      }
+
+      // Cola de jabalí rizada
+      ctx.strokeStyle = '#3a1e0a';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(10, 22);
+      ctx.quadraticCurveTo(2, 16, 6, 10);
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
+    // Dibujar Botellín de Cerveza 🍻 (Doble Anchura)
+    function drawBeerObstacle(obs) {
+      ctx.save();
+      ctx.translate(obs.x, obs.y);
+
+      // Si se ha especificado una imagen personalizada (botellin.webp), usarla si es una imagen vertical de botella
+      if (CUSTOM_ASSETS.beerUrl && customBeerImg.complete && customBeerImg.naturalWidth !== 0) {
+        const imgRatio = customBeerImg.naturalWidth / customBeerImg.naturalHeight;
+        if (imgRatio < 1.25) {
+          const renderH = obs.height;
+          const renderW = Math.max(obs.width, Math.round(renderH * imgRatio));
+          ctx.drawImage(customBeerImg, 0, obs.height - renderH, renderW, renderH);
+          ctx.restore();
+          return;
+        }
+      }
+
+      ctx.scale(obs.width / 52, 1);
+
+      if (obs.subType === 'BOTTLE') {
+        // Botellín de cerveza verde tradicional
+        ctx.fillStyle = '#15803d';
+        ctx.beginPath();
+        ctx.roundRect(8, 16, 18, 28, [3, 3, 5, 5]);
+        ctx.fill();
+
+        ctx.fillRect(12, 4, 10, 14);
+
+        ctx.fillStyle = '#f59e0b';
+        ctx.fillRect(11, 1, 12, 4);
+
+        ctx.fillStyle = '#fef08a';
+        ctx.fillRect(9, 22, 16, 12);
+        ctx.fillStyle = '#b45309';
+        ctx.fillRect(11, 25, 12, 6);
+
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+        ctx.fillRect(10, 18, 3, 22);
+      } else {
+        // Jarra de Cerveza espumosa
+        ctx.fillStyle = '#f59e0b';
+        ctx.beginPath();
+        ctx.roundRect(6, 12, 24, 30, [4, 4, 6, 6]);
+        ctx.fill();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(10, 11, 7, 0, Math.PI * 2);
+        ctx.arc(18, 9, 8, 0, Math.PI * 2);
+        ctx.arc(26, 11, 7, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = '#d97706';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.arc(32, 26, 7, Math.PI * 1.5, Math.PI * 0.5);
+        ctx.stroke();
+
+        ctx.fillStyle = '#fef08a';
+        ctx.fillRect(12, 20, 3, 3);
+        ctx.fillRect(20, 28, 2, 2);
+        ctx.fillRect(15, 32, 3, 3);
+      }
+
+      ctx.restore();
+    }
+
+    // Dibujar Botella de Ron Barceló 🍾 (Doble Anchura)
+    function drawRumObstacle(obs) {
+      ctx.save();
+      ctx.translate(obs.x, obs.y);
+
+      // Si se ha especificado una imagen personalizada (barcelo.webp), usarla si es una imagen vertical de botella
+      if (CUSTOM_ASSETS.rumUrl && customRumImg.complete && customRumImg.naturalWidth !== 0) {
+        const imgRatio = customRumImg.naturalWidth / customRumImg.naturalHeight;
+        if (imgRatio < 1.25) {
+          const renderH = obs.height;
+          const renderW = Math.max(obs.width, Math.round(renderH * imgRatio));
+          ctx.drawImage(customRumImg, 0, obs.height - renderH, renderW, renderH);
+          ctx.restore();
+          return;
+        }
+      }
+
+      ctx.scale(obs.width / 54, 1);
+
+      // Dibujo procedimental de Botella de Barceló
+      ctx.fillStyle = '#7c2d12';
+      ctx.beginPath();
+      ctx.roundRect(6, 10, 34, 38, [4, 4, 6, 6]);
+      ctx.fill();
+
+      ctx.fillStyle = '#f59e0b';
+      ctx.fillRect(8, 20, 30, 16);
+
+      ctx.fillStyle = '#dc2626';
+      ctx.fillRect(16, 2, 14, 10);
+
+      ctx.restore();
+    }
+
+    // Dibujar Coche / Guardia de Policía 🚓
+    function drawPoliceCarObstacle(obs) {
+      ctx.save();
+      ctx.translate(obs.x, obs.y);
+
+      // Si se ha especificado una imagen personalizada (guardia.webp), dibujarla con el ancho configurado (200px)
+      if (CUSTOM_ASSETS.policeUrl && customPoliceImg.complete && customPoliceImg.naturalWidth !== 0) {
+        const imgRatio = customPoliceImg.naturalWidth / customPoliceImg.naturalHeight;
+        const renderH = CUSTOM_ASSETS.policeHeight || obs.height || 40;
+        const renderW = CUSTOM_ASSETS.policeWidth || Math.max(200, Math.round(renderH * imgRatio));
+        ctx.drawImage(customPoliceImg, 0, obs.height - renderH, renderW, renderH);
+        ctx.restore();
+        return;
+      }
+
+      // Chasis inferior (Negro)
+      ctx.fillStyle = '#1e293b';
+      ctx.beginPath();
+      ctx.roundRect(0, 18, 68, 22, [6, 6, 4, 4]);
+      ctx.fill();
+
+      // Parte superior / Puertas (Blanco policía)
+      ctx.fillStyle = '#f8fafc';
+      ctx.beginPath();
+      ctx.roundRect(14, 6, 38, 16, [8, 10, 2, 2]);
+      ctx.fill();
+
+      // Franja azul lateral de policía
+      ctx.fillStyle = '#2563eb';
+      ctx.fillRect(0, 24, 68, 6);
+
+      // Texto mini POLICIA / 092
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 8px sans-serif';
+      ctx.fillText('POLICIA', 18, 23);
+
+      // Ventanillas / Cristal tintado
+      ctx.fillStyle = '#0284c7';
+      ctx.fillRect(18, 9, 14, 9);
+      ctx.fillRect(35, 9, 12, 9);
+
+      // Luces de Sirena Parpadeantes (Rojo y Azul) 🚨
+      const flash = Math.floor(Date.now() / 120) % 2 === 0;
+      // Luz Izquierda
+      ctx.fillStyle = flash ? '#ef4444' : '#1e3a8a';
+      ctx.fillRect(28, 1, 6, 5);
+      // Luz Derecha
+      ctx.fillStyle = flash ? '#1d4ed8' : '#7f1d1d';
+      ctx.fillRect(34, 1, 6, 5);
+
+      // Resplandor de sirena
+      ctx.fillStyle = flash ? 'rgba(239, 68, 68, 0.25)' : 'rgba(37, 99, 235, 0.25)';
+      ctx.beginPath();
+      ctx.arc(34, 3, 20, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Ruedas giratorias
+      [14, 52].forEach(wx => {
+        ctx.fillStyle = '#0f172a';
+        ctx.beginPath();
+        ctx.arc(wx, 38, 8, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#94a3b8';
+        ctx.beginPath();
+        ctx.arc(wx, 38, 4, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      ctx.restore();
+    }
+
+    // Dibujar Helicóptero / Obstáculo Aéreo a Media Pantalla 🚁 (Tamaño Triplicado)
+    function drawHelicopterObstacle(obs) {
+      ctx.save();
+      ctx.translate(obs.x, obs.y);
+
+      // Si se ha especificado una imagen personalizada para el helicóptero (helicoptero.webp)
+      if (CUSTOM_ASSETS.helicopterUrl && customHelicopterImg.complete && customHelicopterImg.naturalWidth !== 0) {
+        const imgRatio = customHelicopterImg.naturalWidth / customHelicopterImg.naturalHeight;
+        const renderH = obs.height || 105;
+        const renderW = CUSTOM_ASSETS.helicopterWidth || Math.max(obs.width, Math.round(renderH * imgRatio));
+        ctx.drawImage(customHelicopterImg, 0, 0, renderW, renderH);
+        ctx.restore();
+        return;
+      }
+
+      ctx.scale((obs.width || 320) / 120, (obs.height || 105) / 45);
+
+      // Dibujo procedimental de Helicóptero 🚁
+      ctx.fillStyle = '#0284c7';
+      ctx.beginPath();
+      ctx.roundRect(14, 12, 54, 22, [12, 16, 6, 6]);
+      ctx.fill();
+
+      ctx.fillStyle = '#38bdf8';
+      ctx.beginPath();
+      ctx.roundRect(14, 14, 22, 14, [8, 4, 2, 4]);
+      ctx.fill();
+
+      const rotorAngle = (Date.now() * 0.05) % (Math.PI * 2);
+      const rotorSpan = Math.cos(rotorAngle) * 45;
+      ctx.strokeStyle = '#f8fafc';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(40 - rotorSpan, 4);
+      ctx.lineTo(40 + rotorSpan, 4);
+      ctx.stroke();
+
+      ctx.fillStyle = '#64748b';
+      ctx.fillRect(38, 4, 4, 8);
+
+      ctx.fillStyle = '#0284c7';
+      ctx.fillRect(68, 18, 28, 6);
+      ctx.fillRect(92, 10, 4, 22);
+
+      ctx.strokeStyle = '#334155';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.moveTo(22, 34); ctx.lineTo(22, 40); ctx.lineTo(60, 40); ctx.lineTo(60, 34);
+      ctx.moveTo(16, 40); ctx.lineTo(66, 40);
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
+    // Dibujar Escenario
+    function drawEnvironment() {
+      // 1. Si se ha especificado la imagen de fondo personalizada (fondo_encinar.webp)
+      if (CUSTOM_ASSETS.backgroundUrl && customBgImg.complete && customBgImg.naturalWidth !== 0) {
+        // Imagen de Fondo Estática
+        ctx.drawImage(customBgImg, 0, 0, VIRTUAL_WIDTH, GROUND_Y);
+
+        // Capa Oscura Reguladora de Contraste para que los aviones y obstáculos blancos destaquen perfectamente
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.55)';
+        ctx.fillRect(0, 0, VIRTUAL_WIDTH, GROUND_Y);
+      } else {
+        // Cielo y montañas por defecto
+        const skyGradient = ctx.createLinearGradient(0, 0, 0, GROUND_Y);
+        skyGradient.addColorStop(0, '#0f172a');
+        skyGradient.addColorStop(0.55, '#1e1b4b');
+        skyGradient.addColorStop(1, '#312e81');
+        ctx.fillStyle = skyGradient;
+        ctx.fillRect(0, 0, VIRTUAL_WIDTH, GROUND_Y);
+
+        // Estrellas parpadeantes
+        ctx.fillStyle = '#ffffff';
+        bgStars.forEach(star => {
+          ctx.globalAlpha = Math.sin(Date.now() * 0.003 + star.x) * 0.3 + star.alpha;
+          ctx.fillRect(star.x, star.y, star.size, star.size);
+        });
+        ctx.globalAlpha = 1.0;
+
+        // Montañas de fondo
+        ctx.fillStyle = '#1e1b4b';
+        bgMountains.forEach(m => {
+          ctx.beginPath();
+          ctx.moveTo(m.x, GROUND_Y);
+          ctx.lineTo(m.x + m.width / 2, GROUND_Y - m.height);
+          ctx.lineTo(m.x + m.width, GROUND_Y);
+          ctx.fill();
+
+          if (gameState === 'PLAYING') {
+            m.x -= gameSpeed * 0.15;
+            if (m.x + m.width < 0) m.x = VIRTUAL_WIDTH;
+          }
+        });
+      }
+
+      // 4. Luces y Guirnaldas de Fiesta Peñista 🎈
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+      ctx.beginPath();
+      ctx.moveTo(0, 40);
+      for (let x = 0; x <= VIRTUAL_WIDTH; x += 100) {
+        ctx.quadraticCurveTo(x + 50, 65, x + 100, 40);
+      }
+      ctx.stroke();
+
+      // Bombillas de colores parpadeantes
+      const colors = ['#ef4444', '#f59e0b', '#10b981', '#06b6d4', '#ec4899'];
+      let colorIdx = 0;
+      for (let x = 50; x < VIRTUAL_WIDTH; x += 50) {
+        ctx.fillStyle = colors[(colorIdx + Math.floor(Date.now() / 300)) % colors.length];
+        ctx.beginPath();
+        ctx.arc(x, 56, 4, 0, Math.PI * 2);
+        ctx.fill();
+        colorIdx++;
+      }
+
+      // 5. Suelo / Pista de Carreras
+      ctx.fillStyle = '#1e293b';
+      ctx.fillRect(0, GROUND_Y, VIRTUAL_WIDTH, VIRTUAL_HEIGHT - GROUND_Y);
+
+      // Línea dorada festiva del suelo
+      ctx.fillStyle = '#f59e0b';
+      ctx.fillRect(0, GROUND_Y, VIRTUAL_WIDTH, 4);
+
+      // Textura de gravilla/línea discontinua en el suelo
+      ctx.fillStyle = '#334155';
+      const offset = (distance * 2) % 40;
+      for (let x = -offset; x < VIRTUAL_WIDTH; x += 40) {
+        ctx.fillRect(x, GROUND_Y + 18, 20, 4);
+      }
+    }
+
+    // Partículas de Polvo y Explosión
+    function createDustParticle(x, y) {
+      particles.push({
+        x: x,
+        y: y,
+        vx: -gameSpeed * 0.4 + (Math.random() - 0.5) * 2,
+        vy: (Math.random() - 0.5) * 2 - 1,
+        size: Math.random() * 5 + 3,
+        alpha: 0.7,
+        color: '#94a3b8'
+      });
+    }
+
+    function createBeerSplash(x, y) {
+      for (let i = 0; i < 18; i++) {
+        particles.push({
+          x: x,
+          y: y,
+          vx: (Math.random() - 0.5) * 10,
+          vy: -Math.random() * 8 - 2,
+          size: Math.random() * 6 + 2,
+          alpha: 1.0,
+          color: Math.random() > 0.4 ? '#f59e0b' : '#ffffff'
+        });
+      }
+    }
+
+    function updateParticles() {
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.alpha -= 0.025;
+
+        ctx.fillStyle = p.color;
+        ctx.globalAlpha = Math.max(0, p.alpha);
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+
+        if (p.alpha <= 0) {
+          particles.splice(i, 1);
+      ctx.globalAlpha = 1.0;
+    }
+
+    /* ==========================================================================
+       5. LÓGICA DE BUCLE DE JUEGO Y COLISIONES
+       ========================================================================== */
+
+    let lastFrameTime = 0;
+
+    function resetGame() {
+      score = 0;
+      distance = 0;
+      gameSpeed = 3.8;
+      milestoneCounter = 0;
+      obstacles = [];
+      particles = [];
+      obstacleTimer = 0;
+      minObstacleInterval = 140;
+      lastFrameTime = 0;
+
+      boar.y = GROUND_Y - boar.height;
+      boar.vy = 0;
+      boar.isGrounded = true;
+      boar.canDoubleJump = true;
+
+      hudScore.textContent = '00000';
+      hudHighScore.textContent = `RÉCORD: ${String(highScore).padStart(5, '0')}`;
+    }
+
+    function triggerJump() {
+      if (gameState !== 'PLAYING') return;
+
+      if (boar.isGrounded) {
+        // Primer Salto desde el suelo
+        boar.vy = boar.jumpForce;
+        boar.isGrounded = false;
+        boar.canDoubleJump = true;
+        soundEngine.playJump();
+
+        for (let i = 0; i < 5; i++) {
+          createDustParticle(boar.x + 20, GROUND_Y - 5);
+        }
+      } else if (boar.canDoubleJump) {
+        // ¡DOBLE SALTO EN EL AIRE!
+        boar.vy = boar.jumpForce * 0.85;
+        boar.canDoubleJump = false;
+        soundEngine.playJump();
+
+        for (let i = 0; i < 8; i++) {
+          createDustParticle(boar.x + 40, boar.y + 30);
+        }
+      }
+    }
+
+    function spawnObstacle() {
+      const rand = Math.random();
+      
+      if (score > 100 && rand < 0.25) {
+        // Obstáculo Aéreo: Helicóptero gigante a media pantalla 🚁 (helicoptero.webp - 320px)
+        const hWidth = CUSTOM_ASSETS.helicopterWidth || 320;
+        obstacles.push({
+          type: 'HELICOPTER',
+          x: VIRTUAL_WIDTH + 20,
+          y: GROUND_Y - 175,
+          width: hWidth,
+          height: 105
+        });
+      } else if (rand < 0.50) {
+        // Obstáculo Terrestre: Coche / Guardia de policía 👮 (guardia.webp)
+        const pWidth = CUSTOM_ASSETS.policeWidth || 200;
+        obstacles.push({
+          type: 'POLICE',
+          x: VIRTUAL_WIDTH + 20,
+          y: GROUND_Y - 40,
+          width: pWidth,
+          height: 40
+        });
+      } else if (rand < 0.75) {
+        // Obstáculo Terrestre: Botellín de Cerveza 🍻 (Doble anchura: 104px)
+        const bWidth = CUSTOM_ASSETS.beerWidth || 104;
+        obstacles.push({
+          type: 'BEER',
+          x: VIRTUAL_WIDTH + 20,
+          y: GROUND_Y - 50,
+          width: bWidth,
+          height: 50
+        });
+      } else {
+        // Obstáculo Terrestre: Botella de Ron Barceló 🍾 (Doble anchura: 108px)
+        const rWidth = CUSTOM_ASSETS.rumWidth || 108;
+        obstacles.push({
+          type: 'RUM',
+          x: VIRTUAL_WIDTH + 20,
+          y: GROUND_Y - 52,
+          width: rWidth,
+          height: 52
+        });
+      }
+    }
+
+    function checkCollision(rect1, rect2) {
+      // Hitbox justa y permisiva para sprites anchos (evita choque injusto con bordes transparentes)
+      const paddingX = (rect2.type === 'HELICOPTER' || rect2.type === 'AIRPLANE') ? 12 : 35;
+      const paddingY = (rect2.type === 'HELICOPTER' || rect2.type === 'AIRPLANE') ? 6 : 18;
+      return (
+        rect1.x + paddingX < rect2.x + rect2.width - paddingX &&
+        rect1.x + rect1.width - paddingX > rect2.x + paddingX &&
+        rect1.y + paddingY < rect2.y + rect2.height - paddingY &&
+        rect1.y + rect1.height - paddingY > rect2.y + paddingY
+      );
+    }
+
+    function gameOver() {
+      gameState = 'GAMEOVER';
+      soundEngine.playGameOver();
+
+      // Guardar récord personal
+      if (score > highScore) {
+        highScore = score;
+        localStorage.setItem('jabatazo_high_score', highScore);
+      }
+
+      finalScoreEl.textContent = String(score).padStart(5, '0');
+      finalHighScoreEl.textContent = String(highScore).padStart(5, '0');
+
+      // Guardar puntaje en Backend (Firebase o Local)
+      saveScoreToLeaderboard(playerName, score);
+
+      // Mostrar modal
+      hud.classList.add('hidden');
+      controlsHint.classList.add('hidden');
+      modalGameOver.classList.remove('hidden');
+    }
+
+    function gameLoop(timestamp) {
+      // Cálculo de Delta-Time (independiente de los FPS del dispositivo)
+      if (!lastFrameTime) lastFrameTime = timestamp;
+      let deltaSec = (timestamp - lastFrameTime) / 1000;
+      lastFrameTime = timestamp;
+
+      if (deltaSec > 0.1) deltaSec = 0.0166;
+      if (deltaSec <= 0) deltaSec = 0.0166;
+
+      // dt = 1.0 a 60 FPS exactos
+      const dt = deltaSec / 0.016666;
+
+      ctx.clearRect(0, 0, VIRTUAL_WIDTH, VIRTUAL_HEIGHT);
+
+      // Dibujar fondo siempre
+      drawEnvironment();
+
+      if (gameState === 'PLAYING') {
+        distance += gameSpeed * 0.1 * dt;
+        score = Math.floor(distance);
+
+        // Aumento suave y progresivo de velocidad
+        const initialSpeed = 3.8;
+        const maxSpeed = 16.0;
+        gameSpeed = Math.min(maxSpeed, initialSpeed + (score * 0.006));
+
+        // Sonido de hito cada 100 puntos
+        if (Math.floor(score / 100) > milestoneCounter) {
+          milestoneCounter = Math.floor(score / 100);
+          soundEngine.playScoreMilestone();
+        }
+
+        // Actualizar HUD
+        hudScore.textContent = String(score).padStart(5, '0');
+
+        // Física del Jabalí corregida por Delta-Time
+        boar.vy += boar.gravity * dt;
+        boar.y += boar.vy * dt;
+
+        if (boar.y >= GROUND_Y - boar.height) {
+          if (!boar.isGrounded) {
+            // Polvo al aterrizar
+            for (let i = 0; i < 4; i++) {
+              createDustParticle(boar.x + 20, GROUND_Y - 5);
+            }
+          }
+          boar.y = GROUND_Y - boar.height;
+          boar.vy = 0;
+          boar.isGrounded = true;
+          boar.canDoubleJump = true;
+        }
+
+        boar.legCycle += gameSpeed * 0.035 * dt;
+
+        // Crear polvo al correr
+        if (boar.isGrounded && Math.random() < 0.3 * dt) {
+          createDustParticle(boar.x + 10, GROUND_Y - 5);
+        }
+
+        // Gestión de Obstáculos
+        obstacleTimer += 1 * dt;
+        if (obstacleTimer > minObstacleInterval) {
+          if (Math.random() < 0.07 * dt) {
+            spawnObstacle();
+            obstacleTimer = 0;
+            // Spacing dinámico según la velocidad actual
+            minObstacleInterval = Math.max(65, Math.floor(135 - gameSpeed * 3.5));
+          }
+        }
+
+        for (let i = obstacles.length - 1; i >= 0; i--) {
+          const obs = obstacles[i];
+          obs.x -= gameSpeed * dt;
+
+          // Renderizar obstáculo según tipo
+          if (obs.type === 'BEER') {
+            drawBeerObstacle(obs);
+          } else if (obs.type === 'POLICE') {
+            drawPoliceCarObstacle(obs);
+          } else if (obs.type === 'HELICOPTER' || obs.type === 'AIRPLANE') {
+            drawHelicopterObstacle(obs);
+          } else if (obs.type === 'RUM') {
+            drawRumObstacle(obs);
+          }
+
+          // Comprobar colisión
+          if (checkCollision(boar, obs)) {
+            createBeerSplash(obs.x + obs.width / 2, obs.y + obs.height / 2);
+            gameOver();
+            break;
+          }
+
+          // Eliminar si sale de pantalla
+          if (obs.x + obs.width < -50) {
+            obstacles.splice(i, 1);
+          }
+        }
+      }
+
+      // Renderizar Jabalí y partículas
+      drawBoar(boar, gameState);
+      updateParticles();
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    /* ==========================================================================
+       6. GESTIÓN DEL LEADERBOARD / RANKING GLOBAL (FIREBASE & LOCALSTORAGE)
+       ========================================================================== */
+
+    function saveScoreToLeaderboard(name, scoreVal) {
+      const newEntry = {
+        nombre: name || 'JabalíAnónimo',
+        score: Number(scoreVal),
+        fecha: Date.now()
+      };
+
+      if (isFirebaseActive && database) {
+        try {
+          database.ref('leaderboard').push(newEntry);
+          console.log("🏆 Puntuación guardada en Firebase Realtime Database.");
+        } catch (err) {
+          console.warn("Error guardando en Firebase, usando backup local:", err);
+          saveScoreLocal(newEntry);
+        }
+      } else {
+        saveScoreLocal(newEntry);
+      }
+
+      // Cargar ranking actualizado
+      fetchLeaderboard();
+    }
+
+    function saveScoreLocal(entry) {
+      let localScores = JSON.parse(localStorage.getItem('jabatazo_local_leaderboard') || '[]');
+      localScores.push(entry);
+      localScores.sort((a, b) => b.score - a.score);
+      localScores = localScores.slice(0, 10);
+      localStorage.setItem('jabatazo_local_leaderboard', JSON.stringify(localScores));
+    }
+
+    function fetchLeaderboard() {
+      leaderboardList.innerHTML = '<div class="text-center text-slate-500 py-3 italic text-xs">Cargando clasificación...</div>';
+
+      if (isFirebaseActive && database) {
+        dbStatusBadge.textContent = 'En Vivo 🌐';
+        dbStatusBadge.className = 'text-[10px] px-2 py-0.5 rounded-full font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
+
+        database.ref('leaderboard').orderByChild('score').limitToLast(10).once('value')
+          .then((snapshot) => {
+            const list = [];
+            snapshot.forEach((childSnap) => {
+              list.push(childSnap.val());
+            });
+            list.reverse(); // Ordenar de mayor a menor
+            renderLeaderboardTable(list);
+          })
+          .catch((err) => {
+            console.warn("Fallo al leer Firebase, mostrando local:", err);
+            renderLeaderboardTable(getLocalLeaderboard());
+          });
+      } else {
+        dbStatusBadge.textContent = 'Modo Local 💾';
+        dbStatusBadge.className = 'text-[10px] px-2 py-0.5 rounded-full font-semibold bg-amber-500/20 text-amber-400 border border-amber-500/30';
+        renderLeaderboardTable(getLocalLeaderboard());
+      }
+    }
+
+    function getLocalLeaderboard() {
+      return JSON.parse(localStorage.getItem('jabatazo_local_leaderboard') || '[]');
+    }
+
+    function renderLeaderboardTable(list) {
+      if (!list || list.length === 0) {
+        leaderboardList.innerHTML = '<div class="text-center text-slate-500 py-4 italic text-xs">¡Sé el primero en marcar un récord!</div>';
+        return;
+      }
+
+      const medals = ['🥇', '🥈', '🥉'];
+      leaderboardList.innerHTML = list.map((item, index) => {
+        const isCurrent = item.nombre === playerName && item.score === score;
+        const rankDisplay = medals[index] || `#${index + 1}`;
+        const rowBg = isCurrent ? 'bg-amber-500/20 text-amber-300 font-bold border-l-2 border-amber-400' : 'hover:bg-slate-800/50 text-slate-300';
+
+        return `
+          <div class="grid grid-cols-12 items-center px-2 py-2 ${rowBg} transition">
+            <span class="col-span-2 font-bold text-xs">${rankDisplay}</span>
+            <span class="col-span-6 truncate text-xs font-semibold">${escapeHtml(item.nombre)}</span>
+            <span class="col-span-4 text-right font-arcade text-xs text-amber-400">${item.score}</span>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function escapeHtml(str) {
+      return String(str).replace(/[&<>"']/g, m => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
+      })[m]);
+    }
+
+    /* ==========================================================================
+       7. CONTROLADORES DE EVENTOS (TECLADO, TÁCTIL Y BOTONES)
+       ========================================================================== */
+
+    // Formulario de Inicio
+    formWelcome.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const inputVal = playerNameInput.value.trim();
+      if (!inputVal) return;
+
+      playerName = inputVal;
+      localStorage.setItem('jabatazo_player_name', playerName);
+      hudPlayerName.textContent = playerName;
+
+      soundEngine.init();
+
+      modalWelcome.classList.add('hidden');
+      hud.classList.remove('hidden');
+      controlsHint.classList.remove('hidden');
+
+      resetGame();
+      gameState = 'PLAYING';
+    });
+
+    // Botón Reintentar
+    btnRestart.addEventListener('click', () => {
+      soundEngine.init();
+      modalGameOver.classList.add('hidden');
+      hud.classList.remove('hidden');
+      controlsHint.classList.remove('hidden');
+
+      resetGame();
+      gameState = 'PLAYING';
+    });
+
+    // Toggle de Audio
+    btnAudioToggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      soundEngine.muted = !soundEngine.muted;
+      audioIcon.textContent = soundEngine.muted ? '🔇' : '🔊';
+      btnAudioToggle.classList.toggle('text-slate-500', soundEngine.muted);
+    });
+
+    // Teclado (Espacio / Flecha Arriba)
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') {
+        if (gameState === 'PLAYING') {
+          e.preventDefault();
+          triggerJump();
+        }
+      }
+    });
+
+    // Controles Táctiles / Click en Pantalla (Funciona en toda la pantalla en móvil vertical)
+    function handleScreenTap(e) {
+      // Ignorar si el click proviene de botones o modales
+      if (e.target.closest('button') || e.target.closest('input') || gameState !== 'PLAYING') {
+        return;
+      }
+      soundEngine.init();
+      triggerJump();
+    }
+
+    window.addEventListener('touchstart', (e) => {
+      if (gameState === 'PLAYING' && !e.target.closest('button') && !e.target.closest('input')) {
+        e.preventDefault();
+        handleScreenTap(e);
+      }
+    }, { passive: false });
+
+    window.addEventListener('mousedown', (e) => {
+      handleScreenTap(e);
+    });
+
+    // Iniciar bucle de renderizado
+    requestAnimationFrame(gameLoop);
+  </script>
+</body>
+</html>
