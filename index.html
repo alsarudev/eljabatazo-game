@@ -651,10 +651,17 @@
       policeWidth: 160,
       policeHeight: 0,
 
-      // 7. Imagen del obstáculo de Pollo / Gallina 🐔
+      // 5. Imagen del obstáculo aéreo (Helicóptero)
+      helicopterUrl: 'helicoptero.webp',
+      helicopterWidth: 320,
+
+      // 6. Imagen del obstáculo de Pollo / Gallina 🐔
       chickenUrl: 'pollo.webp',
       chickenWidth: 70,
       chickenHeight: 60,
+
+      // 7. Imagen de Fondo / Escenario (fondo_encinar.webp)
+      backgroundUrl: 'fondo_encinar.webp',
 
       // 8. Música de fondo
       musicUrl: 'jabatazo-hit.mp3'
@@ -1094,13 +1101,8 @@
     function drawEnvironment() {
       // 1. Si se ha especificado la imagen de fondo personalizada (fondo_encinar.webp)
       if (CUSTOM_ASSETS.backgroundUrl && customBgImg.complete && customBgImg.naturalWidth !== 0) {
-        if (gameState === 'PLAYING') {
-          bgScrollX = (bgScrollX + gameSpeed * 0.4) % VIRTUAL_WIDTH;
-        }
-
-        // Fondo en movimiento panorámico continuo (Parallax Encinar)
-        ctx.drawImage(customBgImg, -bgScrollX, 0, VIRTUAL_WIDTH, GROUND_Y);
-        ctx.drawImage(customBgImg, VIRTUAL_WIDTH - bgScrollX, 0, VIRTUAL_WIDTH, GROUND_Y);
+        // Imagen de Fondo Estática
+        ctx.drawImage(customBgImg, 0, 0, VIRTUAL_WIDTH, GROUND_Y);
 
         // Capa oscura al 70% para contraste perfecto
         ctx.fillStyle = 'rgba(15, 23, 42, 0.70)';
@@ -1275,23 +1277,21 @@
 
     function createSingleObstacle(type, xOffset) {
       if (type === 'HELICOPTER') {
-        const hWidth = CUSTOM_ASSETS.helicopterWidth || 320;
+        const hWidth = CUSTOM_ASSETS.helicopterWidth || 280;
         return {
           type: 'HELICOPTER',
           x: xOffset,
-          y: GROUND_Y - 140, // Altura limpia estilo Chrome Dino: permite correr por debajo sin chocar
+          y: GROUND_Y - 165, // Elevación garantizada: permite correr por debajo de pie con 30px de espacio libre
           width: hWidth,
-          height: 90
+          height: 75
         };
       } else if (type === 'CHICKEN') {
         const cWidth = CUSTOM_ASSETS.chickenWidth || 70;
         const cHeight = CUSTOM_ASSETS.chickenHeight || 60;
-        // Alternar aleatoriamente: corriendo por el suelo (60%) o aleteando a media altura (40%)
-        const isFluttering = Math.random() < 0.4;
         return {
           type: 'CHICKEN',
           x: xOffset,
-          y: isFluttering ? GROUND_Y - 95 : GROUND_Y - cHeight,
+          y: GROUND_Y - cHeight, // SÓLO EN EL SUELO
           width: cWidth,
           height: cHeight
         };
@@ -1300,7 +1300,7 @@
         return {
           type: 'POLICE',
           x: xOffset,
-          y: GROUND_Y - 40,
+          y: GROUND_Y - 40, // SÓLO EN EL SUELO
           width: pWidth,
           height: 40
         };
@@ -1309,7 +1309,7 @@
         return {
           type: 'BEER',
           x: xOffset,
-          y: GROUND_Y - 50,
+          y: GROUND_Y - 50, // SÓLO EN EL SUELO
           width: bWidth,
           height: 50
         };
@@ -1318,7 +1318,7 @@
         return {
           type: 'RUM',
           x: xOffset,
-          y: GROUND_Y - 52,
+          y: GROUND_Y - 52, // SÓLO EN EL SUELO
           width: rWidth,
           height: 52
         };
@@ -1330,31 +1330,40 @@
       let type = 'BEER';
 
       if (score > 120 && rand < 0.20) {
-        type = 'HELICOPTER';
+        type = 'HELICOPTER'; // Único obstáculo en alto
       } else if (rand < 0.42) {
-        type = 'CHICKEN'; // 🐔 ¡Pollo escapando corriendo o aleteando!
+        type = 'CHICKEN'; // Pollo en el suelo
       } else if (rand < 0.65) {
-        type = 'POLICE';
+        type = 'POLICE'; // Guardia en el suelo
       } else if (rand < 0.85) {
-        type = 'BEER';
+        type = 'BEER'; // Cerveza en el suelo
       } else {
-        type = 'RUM';
+        type = 'RUM'; // Ron en el suelo
       }
 
       // Estilo Chrome Dino: Obstáculos limpios e individuales con margen de reacción garantizado
       obstacles.push(createSingleObstacle(type, VIRTUAL_WIDTH + 20));
       
-      // Espaciado proporcional a la velocidad para que NUNCA falte espacio para aterrizar y saltar
-      minObstacleInterval = Math.max(90, Math.floor(160 - gameSpeed * 3.5));
+      // Espaciado amplio y de fácil reacción
+      minObstacleInterval = Math.max(160, Math.floor(220 - gameSpeed * 3.0));
     }
 
     function checkCollision(rect1, rect2) {
-      // Hitbox justa y permisiva para sprites anchos (evita choque injusto con bordes transparentes)
-      let paddingX = 35;
-      if (rect2.type === 'HELICOPTER' || rect2.type === 'AIRPLANE') paddingX = 12;
-      else if (rect2.type === 'POLICE') paddingX = 40;
+      // Hitbox milimétrica y precisa ajustada al contorno visual real de cada imagen
+      let paddingX = 6;
+      let paddingY = 4;
 
-      const paddingY = (rect2.type === 'HELICOPTER' || rect2.type === 'AIRPLANE') ? 6 : 18;
+      if (rect2.type === 'CHICKEN') {
+        paddingX = 4;
+        paddingY = 4;
+      } else if (rect2.type === 'BEER' || rect2.type === 'RUM') {
+        paddingX = 6;
+        paddingY = 4;
+      } else if (rect2.type === 'POLICE' || rect2.type === 'HELICOPTER' || rect2.type === 'AIRPLANE') {
+        paddingX = 10;
+        paddingY = 4;
+      }
+
       return (
         rect1.x + paddingX < rect2.x + rect2.width - paddingX &&
         rect1.x + rect1.width - paddingX > rect2.x + paddingX &&
