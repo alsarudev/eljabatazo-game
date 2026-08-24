@@ -1058,12 +1058,12 @@
     function resetGame() {
       score = 0;
       distance = 0;
-      gameSpeed = 3.8;
+      gameSpeed = 3.5;
       milestoneCounter = 0;
       obstacles = [];
       particles = [];
       obstacleTimer = 0;
-      minObstacleInterval = 140;
+      minObstacleInterval = 150;
       lastFrameTime = 0;
 
       boar.y = GROUND_Y - boar.height;
@@ -1201,10 +1201,10 @@
         distance += gameSpeed * 0.1 * dt;
         score = Math.floor(distance);
 
-        // Aumento suave y progresivo de velocidad
-        const initialSpeed = 3.8;
-        const maxSpeed = 16.0;
-        gameSpeed = Math.min(maxSpeed, initialSpeed + (score * 0.006));
+        // Aumento progresivo de velocidad (empieza muy fácil en 3.5 y acelera progresivamente hasta 18.5)
+        const initialSpeed = 3.5;
+        const maxSpeed = 18.5;
+        gameSpeed = Math.min(maxSpeed, initialSpeed + (score * 0.012));
 
         // Sonido de hito cada 100 puntos
         if (Math.floor(score / 100) > milestoneCounter) {
@@ -1239,14 +1239,15 @@
           createDustParticle(boar.x + 10, GROUND_Y - 5);
         }
 
-        // Gestión de Obstáculos
+        // Gestión de Obstáculos (Comienza espaciado y se vuelve más frecuente y exigente con el tiempo)
         obstacleTimer += 1 * dt;
         if (obstacleTimer > minObstacleInterval) {
-          if (Math.random() < 0.07 * dt) {
+          const spawnChance = Math.min(0.16, 0.08 + (gameSpeed * 0.005));
+          if (Math.random() < spawnChance * dt) {
             spawnObstacle();
             obstacleTimer = 0;
-            // Spacing dinámico según la velocidad actual
-            minObstacleInterval = Math.max(65, Math.floor(135 - gameSpeed * 3.5));
+            // Reducción progresiva de distancia entre obstáculos a medida que acelera
+            minObstacleInterval = Math.max(45, Math.floor(150 - (gameSpeed * 5.2)));
           }
         }
 
