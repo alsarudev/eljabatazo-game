@@ -311,6 +311,9 @@
       constructor() {
         this.ctx = null;
         this.muted = false;
+        this.bgmAudio = null;
+        this.bgmTimer = null;
+        this.isPlayingBgm = false;
       }
 
       init() {
@@ -324,8 +327,84 @@
           if (this.ctx && this.ctx.state === 'suspended') {
             this.ctx.resume();
           }
+
+          if (CUSTOM_ASSETS.musicUrl && !this.bgmAudio) {
+            this.bgmAudio = new Audio(CUSTOM_ASSETS.musicUrl);
+            this.bgmAudio.loop = true;
+            this.bgmAudio.volume = 0.4;
+          }
         } catch (e) {
           console.warn("AudioContext init:", e);
+        }
+      }
+
+      startBGM() {
+        if (this.muted) return;
+        this.isPlayingBgm = true;
+
+        if (this.bgmAudio) {
+          this.bgmAudio.currentTime = 0;
+          this.bgmAudio.play().catch(e => console.log("BGM Audio:", e));
+          return;
+        }
+
+        if (!this.ctx) return;
+        this.stopBGM();
+        this.isPlayingBgm = true;
+
+        // Sintetizador 8-Bit Chiptune festivo
+        const notes = [
+          261.63, 329.63, 392.00, 523.25, 392.00, 329.63,
+          293.66, 349.23, 440.00, 587.33, 440.00, 349.23,
+          329.63, 392.00, 493.88, 659.25, 493.88, 392.00,
+          349.23, 440.00, 523.25, 698.46, 523.25, 440.00
+        ];
+        let noteIdx = 0;
+
+        const playNextNote = () => {
+          if (!this.isPlayingBgm || this.muted || !this.ctx) return;
+          try {
+            const now = this.ctx.currentTime;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(notes[noteIdx % notes.length], now);
+
+            gain.gain.setValueAtTime(0.04, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
+
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+
+            osc.start(now);
+            osc.stop(now + 0.16);
+
+            noteIdx++;
+            this.bgmTimer = setTimeout(playNextNote, 185);
+          } catch(e) {}
+        };
+
+        playNextNote();
+      }
+
+      stopBGM() {
+        this.isPlayingBgm = false;
+        if (this.bgmAudio) {
+          this.bgmAudio.pause();
+        }
+        if (this.bgmTimer) {
+          clearTimeout(this.bgmTimer);
+          this.bgmTimer = null;
+        }
+      }
+
+      setMuted(muted) {
+        this.muted = muted;
+        if (this.muted) {
+          this.stopBGM();
+        } else if (gameState === 'PLAYING') {
+          this.startBGM();
         }
       }
 
@@ -369,10 +448,10 @@
       }
 
       playGameOver() {
+        this.stopBGM();
         if (this.muted || !this.ctx) return;
         try {
           const now = this.ctx.currentTime;
-          // Ruido de choque + tono descendente
           const osc = this.ctx.createOscillator();
           const gain = this.ctx.createGain();
           osc.type = 'sawtooth';
@@ -422,9 +501,15 @@
     const GROUND_Y = 370;
 
     function resizeCanvas() {
-      const rect = canvas.getBoundingClientRect();
-      canvas.width = VIRTUAL_WIDTH;
-      canvas.height = VIRTUAL_HEIGHT;
+      const dpr = Math.min(window.devicePixelRatio || 1, 3);
+      canvas.width = Math.round(VIRTUAL_WIDTH * dpr);
+      canvas.height = Math.round(VIRTUAL_HEIGHT * dpr);
+
+      ctx.resetTransform();
+      ctx.scale(dpr, dpr);
+
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
     }
     window.addEventListener('resize', resizeCanvas);
     resizeCanvas();
@@ -440,15 +525,15 @@
     let lastTime = 0;
     let milestoneCounter = 0;
 
-    // Personaje Jabalí (Impulso ajustado para superar holgadamente los coches de policía)
+    // Personaje Jabalí (Salto fluido y equilibrado)
     const boar = {
       x: 110,
       y: GROUND_Y - 60,
       width: 190,
       height: 60,
       vy: 0,
-      gravity: 0.44,
-      jumpForce: -15.5,
+      gravity: 0.48,
+      jumpForce: -14.6,
       isGrounded: true,
       canDoubleJump: true,
       legCycle: 0,
@@ -504,17 +589,20 @@
       rumUrl: 'barcelo.webp',
       rumWidth: 108,
 
-      // 4. Imagen del obstáculo de policía / guardia
+      // 4. Imagen del obstáculo de policía / guardia (Ajustado a 160px para salto fluido)
       policeUrl: 'guardia.webp',
-      policeWidth: 200, // Ancho de 200px para el guardia / coche
-      policeHeight: 0,  // Opcional: Alto personalizado en px. Dejar 0 para auto
+      policeWidth: 160,
+      policeHeight: 0,
 
       // 5. Imagen del obstáculo aéreo (Helicóptero) - Tamaño triplicado (320px)
       helicopterUrl: 'helicoptero.webp',
       helicopterWidth: 320,
 
       // 6. Imagen de Fondo / Escenario
-      backgroundUrl: 'fondo_encinar.webp'
+      backgroundUrl: 'fondo_encinar.webp',
+
+      // 7. Música de fondo
+      musicUrl: 'jabatazo-hit.mp3'
     };
 
     // Objetos Image
@@ -1062,8 +1150,8 @@
       milestoneCounter = 0;
       obstacles = [];
       particles = [];
-      obstacleTimer = 0;
-      minObstacleInterval = 150;
+      obstacleTimer = 110; // Carga rápida para que el primer obstáculo aparezca de inmediato a los 0.2s
+      minObstacleInterval = 120;
       lastFrameTime = 0;
 
       boar.y = GROUND_Y - boar.height;
@@ -1100,55 +1188,109 @@
       }
     }
 
-    function spawnObstacle() {
-      const rand = Math.random();
-      
-      if (score > 100 && rand < 0.25) {
-        // Obstáculo Aéreo: Helicóptero gigante a media pantalla 🚁 (helicoptero.webp - 320px)
+    function createSingleObstacle(type, xOffset) {
+      if (type === 'HELICOPTER') {
         const hWidth = CUSTOM_ASSETS.helicopterWidth || 320;
-        obstacles.push({
+        return {
           type: 'HELICOPTER',
-          x: VIRTUAL_WIDTH + 20,
+          x: xOffset,
           y: GROUND_Y - 175,
           width: hWidth,
           height: 105
-        });
-      } else if (rand < 0.50) {
-        // Obstáculo Terrestre: Coche / Guardia de policía 👮 (guardia.webp)
-        const pWidth = CUSTOM_ASSETS.policeWidth || 200;
-        obstacles.push({
+        };
+      } else if (type === 'POLICE') {
+        const pWidth = CUSTOM_ASSETS.policeWidth || 160;
+        return {
           type: 'POLICE',
-          x: VIRTUAL_WIDTH + 20,
+          x: xOffset,
           y: GROUND_Y - 40,
           width: pWidth,
           height: 40
-        });
-      } else if (rand < 0.75) {
-        // Obstáculo Terrestre: Botellín de Cerveza 🍻 (Doble anchura: 104px)
+        };
+      } else if (type === 'BEER') {
         const bWidth = CUSTOM_ASSETS.beerWidth || 104;
-        obstacles.push({
+        return {
           type: 'BEER',
-          x: VIRTUAL_WIDTH + 20,
+          x: xOffset,
           y: GROUND_Y - 50,
           width: bWidth,
           height: 50
-        });
+        };
       } else {
-        // Obstáculo Terrestre: Botella de Ron Barceló 🍾 (Doble anchura: 108px)
         const rWidth = CUSTOM_ASSETS.rumWidth || 108;
-        obstacles.push({
+        return {
           type: 'RUM',
-          x: VIRTUAL_WIDTH + 20,
+          x: xOffset,
           y: GROUND_Y - 52,
           width: rWidth,
           height: 52
-        });
+        };
       }
+    }
+
+    function getRandomType() {
+      const rand = Math.random();
+      if (score > 100 && rand < 0.28) return 'HELICOPTER';
+      if (rand < 0.52) return 'POLICE';
+      if (rand < 0.78) return 'BEER';
+      return 'RUM';
+    }
+
+    function spawnObstacle() {
+      const allowCombos = score >= 200;
+      const allowTriples = score >= 600;
+      const randPattern = Math.random();
+
+      // PATRÓN A: TRIPLE RÁFAGA RÍTMICA (Aparece a partir de 600 puntos)
+      if (allowTriples && randPattern < 0.25) {
+        const t1 = getRandomType();
+        let t2 = getRandomType();
+        let t3 = getRandomType();
+
+        if (t1 === 'HELICOPTER' && t2 === 'HELICOPTER') t2 = 'BEER';
+        if (t2 === 'HELICOPTER' && t3 === 'HELICOPTER') t3 = 'RUM';
+
+        obstacles.push(createSingleObstacle(t1, VIRTUAL_WIDTH + 20));
+        obstacles.push(createSingleObstacle(t2, VIRTUAL_WIDTH + 220));
+        obstacles.push(createSingleObstacle(t3, VIRTUAL_WIDTH + 480));
+        minObstacleInterval = 175;
+        return;
+      }
+
+      // PATRÓN B: COMBO DOBLE VARIADO (Aparece a partir de 200 puntos)
+      if (allowCombos && randPattern < 0.60) {
+        // Modo "Aterrizar y saltar rápido" vs Modo "Pegados / Doble Salto"
+        const isLandingRush = Math.random() < 0.50;
+        const t1 = getRandomType();
+        let t2 = getRandomType();
+
+        if (t1 === 'HELICOPTER' && t2 === 'HELICOPTER') t2 = 'RUM';
+
+        // Distancia para "Aterrizar y saltar al instante" (280px) vs "Pegados en combo" (175px)
+        let gap = 175;
+        if (isLandingRush) {
+          gap = (t1 === 'POLICE' || t2 === 'POLICE') ? 310 : 275;
+        } else {
+          gap = (t1 === 'POLICE' || t2 === 'POLICE') ? 230 : 175;
+        }
+
+        obstacles.push(createSingleObstacle(t1, VIRTUAL_WIDTH + 20));
+        obstacles.push(createSingleObstacle(t2, VIRTUAL_WIDTH + 20 + gap));
+        minObstacleInterval = isLandingRush ? 125 : 95;
+        return;
+      }
+
+      // PATRÓN C: OBSTÁCULO INDIVIDUAL ESTÁNDAR
+      const t = getRandomType();
+      obstacles.push(createSingleObstacle(t, VIRTUAL_WIDTH + 20));
     }
 
     function checkCollision(rect1, rect2) {
       // Hitbox justa y permisiva para sprites anchos (evita choque injusto con bordes transparentes)
-      const paddingX = (rect2.type === 'HELICOPTER' || rect2.type === 'AIRPLANE') ? 12 : 35;
+      let paddingX = 35;
+      if (rect2.type === 'HELICOPTER' || rect2.type === 'AIRPLANE') paddingX = 12;
+      else if (rect2.type === 'POLICE') paddingX = 40;
+
       const paddingY = (rect2.type === 'HELICOPTER' || rect2.type === 'AIRPLANE') ? 6 : 18;
       return (
         rect1.x + paddingX < rect2.x + rect2.width - paddingX &&
@@ -1192,6 +1334,8 @@
       // dt = 1.0 a 60 FPS exactos
       const dt = deltaSec / 0.016666;
 
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
       ctx.clearRect(0, 0, VIRTUAL_WIDTH, VIRTUAL_HEIGHT);
 
       // Dibujar fondo siempre
@@ -1398,6 +1542,7 @@
 
       try {
         soundEngine.init();
+        soundEngine.startBGM();
       } catch (e) {}
 
       if (modalWelcome) modalWelcome.classList.add('hidden');
@@ -1426,7 +1571,10 @@
 
     // Botón Reintentar
     btnRestart.addEventListener('click', () => {
-      soundEngine.init();
+      try {
+        soundEngine.init();
+        soundEngine.startBGM();
+      } catch(e){}
       modalGameOver.classList.add('hidden');
       hud.classList.remove('hidden');
       controlsHint.classList.remove('hidden');
@@ -1438,7 +1586,7 @@
     // Toggle de Audio
     btnAudioToggle.addEventListener('click', (e) => {
       e.stopPropagation();
-      soundEngine.muted = !soundEngine.muted;
+      soundEngine.setMuted(!soundEngine.muted);
       audioIcon.textContent = soundEngine.muted ? '🔇' : '🔊';
       btnAudioToggle.classList.toggle('text-slate-500', soundEngine.muted);
     });
