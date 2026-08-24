@@ -176,39 +176,51 @@
           <!-- Input Form & Selector de Jugadores -->
           <form id="form-welcome" class="space-y-4 text-left mt-4">
             
+            <!-- Botón Destacado: Crear Nuevo Jugador / Seleccionar Existente -->
+            <div class="flex items-center justify-between gap-2">
+              <span id="welcome-mode-title" class="text-xs font-bold uppercase tracking-wider text-amber-400">
+                👤 Selecciona tu Jugador:
+              </span>
+              <button 
+                type="button" 
+                id="btn-toggle-new-user" 
+                class="px-3 py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 font-bold text-xs transition flex items-center gap-1 cursor-pointer shadow-sm"
+              >
+                <span>➕</span> <span>Crear Nuevo Jugador</span>
+              </button>
+              <button 
+                type="button" 
+                id="btn-toggle-select-user" 
+                class="px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 font-bold text-xs transition flex items-center gap-1 hidden cursor-pointer shadow-sm"
+              >
+                <span>👤</span> <span>Elegir Existente</span>
+              </button>
+            </div>
+
             <!-- 1. Selector de Jugadores Existentes -->
             <div id="container-user-select" class="hidden">
-              <div class="flex items-center justify-between mb-1.5">
-                <label for="player-select" class="block text-xs font-bold uppercase tracking-wider text-amber-400">
-                  👤 Selecciona tu Jugador:
-                </label>
-                <button type="button" id="btn-toggle-new-user" class="text-[11px] underline text-slate-400 hover:text-white font-normal lowercase cursor-pointer">
-                  + Crear nuevo
-                </button>
-              </div>
               <select 
                 id="player-select" 
                 class="w-full px-4 py-3 rounded-xl bg-slate-900/90 border-2 border-amber-500/50 text-white font-bold focus:outline-none focus:border-amber-400 transition text-base cursor-pointer"
               >
                 <!-- Carga dinámica de jugadores -->
               </select>
+              
+              <!-- Botón Borrar Historial de Jugadores -->
+              <div class="mt-2 text-right">
+                <button type="button" id="btn-clear-user-history" class="text-[11px] text-red-400/80 hover:text-red-300 underline lowercase cursor-pointer">
+                  🗑️ Borrar lista de usuarios guardados
+                </button>
+              </div>
             </div>
 
             <!-- 2. Campo Escribir Nuevo Nombre -->
             <div id="container-user-input">
-              <div class="flex items-center justify-between mb-1.5">
-                <label for="player-name-input" class="block text-xs font-bold uppercase tracking-wider text-slate-300">
-                  Tu Nombre / Apodo Peñista:
-                </label>
-                <button type="button" id="btn-toggle-select-user" class="text-[11px] underline text-amber-400 hover:text-amber-300 font-normal hidden lowercase cursor-pointer">
-                  👤 Elegir existente
-                </button>
-              </div>
               <input 
                 type="text" 
                 id="player-name-input" 
                 maxlength="15" 
-                placeholder="Ej: JabalíFiestero" 
+                placeholder="Escribe tu apodo aquí..." 
                 class="w-full px-4 py-3 rounded-xl bg-slate-900/90 border-2 border-slate-700 text-white font-bold placeholder-slate-500 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/30 transition text-base"
               />
             </div>
@@ -1486,6 +1498,9 @@
       refreshUserUI();
     }
 
+    const welcomeModeTitle = document.getElementById('welcome-mode-title');
+    const btnClearUserHistory = document.getElementById('btn-clear-user-history');
+
     function refreshUserUI() {
       const userNames = Object.keys(userRecordsMap);
       
@@ -1495,8 +1510,7 @@
           return `<option value="${escapeHtml(name)}">${escapeHtml(name)} (Récord: ${rec})</option>`;
         }).join('');
 
-        containerUserSelect.classList.remove('hidden');
-        btnToggleSelectUser.classList.remove('hidden');
+        showSelectMode();
 
         // Seleccionar usuario previo si existía
         const savedPlayer = localStorage.getItem('jabatazo_player_name');
@@ -1507,10 +1521,27 @@
           updateSelectedUser(userNames[0]);
         }
       } else {
-        containerUserSelect.classList.add('hidden');
-        containerUserInput.classList.remove('hidden');
-        btnToggleSelectUser.classList.add('hidden');
+        showInputMode();
+        if (btnToggleSelectUser) btnToggleSelectUser.classList.add('hidden');
       }
+    }
+
+    function showSelectMode() {
+      if (containerUserSelect) containerUserSelect.classList.remove('hidden');
+      if (containerUserInput) containerUserInput.classList.add('hidden');
+      if (btnToggleNewUser) btnToggleNewUser.classList.remove('hidden');
+      if (btnToggleSelectUser) btnToggleSelectUser.classList.add('hidden');
+      if (welcomeModeTitle) welcomeModeTitle.textContent = '👤 Selecciona tu Jugador:';
+    }
+
+    function showInputMode() {
+      if (containerUserSelect) containerUserSelect.classList.add('hidden');
+      if (containerUserInput) containerUserInput.classList.remove('hidden');
+      if (btnToggleNewUser) btnToggleNewUser.classList.add('hidden');
+      if (Object.keys(userRecordsMap).length > 0 && btnToggleSelectUser) {
+        btnToggleSelectUser.classList.remove('hidden');
+      }
+      if (welcomeModeTitle) welcomeModeTitle.textContent = '✍️ Nuevo Jugador:';
     }
 
     function updateSelectedUser(name) {
@@ -1530,8 +1561,7 @@
 
     if (btnToggleNewUser) {
       btnToggleNewUser.addEventListener('click', () => {
-        containerUserSelect.classList.add('hidden');
-        containerUserInput.classList.remove('hidden');
+        showInputMode();
         playerNameInput.value = '';
         playerNameInput.focus();
       });
@@ -1539,8 +1569,24 @@
 
     if (btnToggleSelectUser) {
       btnToggleSelectUser.addEventListener('click', () => {
-        containerUserInput.classList.add('hidden');
-        containerUserSelect.classList.remove('hidden');
+        showSelectMode();
+      });
+    }
+
+    if (btnClearUserHistory) {
+      btnClearUserHistory.addEventListener('click', () => {
+        if (confirm("¿Quieres borrar la lista de usuarios y récords locales guardados en este dispositivo?")) {
+          localStorage.removeItem('jabatazo_user_records');
+          localStorage.removeItem('jabatazo_local_leaderboard');
+          localStorage.removeItem('jabatazo_player_name');
+          localStorage.removeItem('jabatazo_high_score');
+          userRecordsMap = {};
+          playerName = '';
+          highScore = 0;
+          if (hudHighScore) hudHighScore.textContent = 'RÉCORD: 00000';
+          refreshUserUI();
+          fetchLeaderboard();
+        }
       });
     }
 
