@@ -651,14 +651,12 @@
       policeWidth: 160,
       policeHeight: 0,
 
-      // 5. Imagen del obstáculo aéreo (Helicóptero) - Tamaño triplicado (320px)
-      helicopterUrl: 'helicoptero.webp',
-      helicopterWidth: 320,
+      // 7. Imagen del obstáculo de Pollo / Gallina 🐔
+      chickenUrl: 'pollo.webp',
+      chickenWidth: 70,
+      chickenHeight: 60,
 
-      // 6. Imagen de Fondo / Escenario
-      backgroundUrl: 'fondo_encinar.webp',
-
-      // 7. Música de fondo
+      // 8. Música de fondo
       musicUrl: 'jabatazo-hit.mp3'
     };
 
@@ -677,6 +675,9 @@
 
     const customHelicopterImg = new Image();
     if (CUSTOM_ASSETS.helicopterUrl) customHelicopterImg.src = CUSTOM_ASSETS.helicopterUrl;
+
+    const customChickenImg = new Image();
+    if (CUSTOM_ASSETS.chickenUrl) customChickenImg.src = CUSTOM_ASSETS.chickenUrl;
 
     const customPlaneImg = new Image();
     if (CUSTOM_ASSETS.planeUrl) customPlaneImg.src = CUSTOM_ASSETS.planeUrl;
@@ -1062,20 +1063,47 @@
       ctx.beginPath();
       ctx.moveTo(22, 34); ctx.lineTo(22, 40); ctx.lineTo(60, 40); ctx.lineTo(60, 34);
       ctx.moveTo(16, 40); ctx.lineTo(66, 40);
-      ctx.stroke();
-
       ctx.restore();
     }
+
+    // Dibujar Obstáculo Pollo 🐔 (pollo.webp)
+    function drawChickenObstacle(obs) {
+      ctx.save();
+      ctx.translate(obs.x, obs.y);
+
+      if (CUSTOM_ASSETS.chickenUrl && customChickenImg.complete && customChickenImg.naturalWidth !== 0) {
+        const imgRatio = customChickenImg.naturalWidth / customChickenImg.naturalHeight;
+        const renderH = obs.height || 60;
+        const renderW = CUSTOM_ASSETS.chickenWidth || Math.max(obs.width, Math.round(renderH * imgRatio));
+        ctx.drawImage(customChickenImg, 0, 0, renderW, renderH);
+        ctx.restore();
+        return;
+      }
+
+      // Dibujo procedimental de Pollo 🐔
+      ctx.fillStyle = '#f87171';
+      ctx.beginPath();
+      ctx.arc(30, 30, 24, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    let bgScrollX = 0;
 
     // Dibujar Escenario
     function drawEnvironment() {
       // 1. Si se ha especificado la imagen de fondo personalizada (fondo_encinar.webp)
       if (CUSTOM_ASSETS.backgroundUrl && customBgImg.complete && customBgImg.naturalWidth !== 0) {
-        // Imagen de Fondo Estática
-        ctx.drawImage(customBgImg, 0, 0, VIRTUAL_WIDTH, GROUND_Y);
+        if (gameState === 'PLAYING') {
+          bgScrollX = (bgScrollX + gameSpeed * 0.4) % VIRTUAL_WIDTH;
+        }
 
-        // Capa Oscura Reguladora de Contraste para que los aviones y obstáculos blancos destaquen perfectamente
-        ctx.fillStyle = 'rgba(15, 23, 42, 0.55)';
+        // Fondo en movimiento panorámico continuo (Parallax Encinar)
+        ctx.drawImage(customBgImg, -bgScrollX, 0, VIRTUAL_WIDTH, GROUND_Y);
+        ctx.drawImage(customBgImg, VIRTUAL_WIDTH - bgScrollX, 0, VIRTUAL_WIDTH, GROUND_Y);
+
+        // Capa oscura al 70% para contraste perfecto
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.70)';
         ctx.fillRect(0, 0, VIRTUAL_WIDTH, GROUND_Y);
       } else {
         // Cielo y montañas por defecto
@@ -1203,12 +1231,12 @@
     function resetGame() {
       score = 0;
       distance = 0;
-      gameSpeed = 3.5;
+      gameSpeed = 4.5;
       milestoneCounter = 0;
       obstacles = [];
       particles = [];
-      obstacleTimer = 110; // Carga rápida para que el primer obstáculo aparezca de inmediato a los 0.2s
-      minObstacleInterval = 120;
+      obstacleTimer = 70; // Carga muy rápida del primer obstáculo
+      minObstacleInterval = 75;
       lastFrameTime = 0;
 
       boar.y = GROUND_Y - boar.height;
@@ -1255,6 +1283,18 @@
           width: hWidth,
           height: 90
         };
+      } else if (type === 'CHICKEN') {
+        const cWidth = CUSTOM_ASSETS.chickenWidth || 70;
+        const cHeight = CUSTOM_ASSETS.chickenHeight || 60;
+        // Alternar aleatoriamente: corriendo por el suelo (60%) o aleteando a media altura (40%)
+        const isFluttering = Math.random() < 0.4;
+        return {
+          type: 'CHICKEN',
+          x: xOffset,
+          y: isFluttering ? GROUND_Y - 95 : GROUND_Y - cHeight,
+          width: cWidth,
+          height: cHeight
+        };
       } else if (type === 'POLICE') {
         const pWidth = CUSTOM_ASSETS.policeWidth || 160;
         return {
@@ -1289,11 +1329,13 @@
       const rand = Math.random();
       let type = 'BEER';
 
-      if (score > 150 && rand < 0.25) {
+      if (score > 120 && rand < 0.20) {
         type = 'HELICOPTER';
-      } else if (rand < 0.55) {
+      } else if (rand < 0.42) {
+        type = 'CHICKEN'; // 🐔 ¡Pollo escapando corriendo o aleteando!
+      } else if (rand < 0.65) {
         type = 'POLICE';
-      } else if (rand < 0.80) {
+      } else if (rand < 0.85) {
         type = 'BEER';
       } else {
         type = 'RUM';
@@ -1366,10 +1408,10 @@
         distance += gameSpeed * 0.1 * dt;
         score = Math.floor(distance);
 
-        // Aumento suave estilo Chrome Dino (inicio en 3.5, progresión paulatina y tope en 13.0)
-        const initialSpeed = 3.5;
-        const maxSpeed = 13.0;
-        gameSpeed = Math.min(maxSpeed, initialSpeed + (score * 0.005));
+        // Progresión de velocidad arcade de ritmo alto (inicio en 4.5, rápida aceleración y tope en 22.0)
+        const initialSpeed = 4.5;
+        const maxSpeed = 22.0;
+        gameSpeed = Math.min(maxSpeed, initialSpeed + (score * 0.016));
 
         // Sonido de hito cada 100 puntos
         if (Math.floor(score / 100) > milestoneCounter) {
@@ -1404,15 +1446,15 @@
           createDustParticle(boar.x + 10, GROUND_Y - 5);
         }
 
-        // Gestión de Obstáculos (Comienza espaciado y se vuelve más frecuente y exigente con el tiempo)
+        // Gestión de Obstáculos de Alta Frecuencia (Espaciados rítmicamente pero muy seguidos)
         obstacleTimer += 1 * dt;
         if (obstacleTimer > minObstacleInterval) {
-          const spawnChance = Math.min(0.16, 0.08 + (gameSpeed * 0.005));
+          const spawnChance = Math.min(0.35, 0.18 + (gameSpeed * 0.008));
           if (Math.random() < spawnChance * dt) {
             spawnObstacle();
             obstacleTimer = 0;
-            // Reducción progresiva de distancia entre obstáculos a medida que acelera
-            minObstacleInterval = Math.max(45, Math.floor(150 - (gameSpeed * 5.2)));
+            // Distancia más corta entre obstáculos a medida que acelera
+            minObstacleInterval = Math.max(38, Math.floor(100 - (gameSpeed * 2.8)));
           }
         }
 
@@ -1423,6 +1465,8 @@
           // Renderizar obstáculo según tipo
           if (obs.type === 'BEER') {
             drawBeerObstacle(obs);
+          } else if (obs.type === 'CHICKEN') {
+            drawChickenObstacle(obs);
           } else if (obs.type === 'POLICE') {
             drawPoliceCarObstacle(obs);
           } else if (obs.type === 'HELICOPTER' || obs.type === 'AIRPLANE') {
