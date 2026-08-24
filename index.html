@@ -1002,7 +1002,7 @@
       // Si se ha especificado una imagen personalizada para el helicóptero (helicoptero.webp)
       if (CUSTOM_ASSETS.helicopterUrl && customHelicopterImg.complete && customHelicopterImg.naturalWidth !== 0) {
         const imgRatio = customHelicopterImg.naturalWidth / customHelicopterImg.naturalHeight;
-        const renderH = obs.height || 105;
+        const renderH = obs.height || 90;
         const renderW = CUSTOM_ASSETS.helicopterWidth || Math.max(obs.width, Math.round(renderH * imgRatio));
         ctx.drawImage(customHelicopterImg, 0, 0, renderW, renderH);
         ctx.restore();
@@ -1232,9 +1232,9 @@
         return {
           type: 'HELICOPTER',
           x: xOffset,
-          y: GROUND_Y - 175,
+          y: GROUND_Y - 140, // Altura limpia estilo Chrome Dino: permite correr por debajo sin chocar
           width: hWidth,
-          height: 105
+          height: 90
         };
       } else if (type === 'POLICE') {
         const pWidth = CUSTOM_ASSETS.policeWidth || 160;
@@ -1266,61 +1266,25 @@
       }
     }
 
-    function getRandomType() {
-      const rand = Math.random();
-      if (score > 100 && rand < 0.28) return 'HELICOPTER';
-      if (rand < 0.52) return 'POLICE';
-      if (rand < 0.78) return 'BEER';
-      return 'RUM';
-    }
-
     function spawnObstacle() {
-      const allowCombos = score >= 200;
-      const allowTriples = score >= 600;
-      const randPattern = Math.random();
+      const rand = Math.random();
+      let type = 'BEER';
 
-      // PATRÓN A: TRIPLE RÁFAGA RÍTMICA (Aparece a partir de 600 puntos)
-      if (allowTriples && randPattern < 0.25) {
-        const t1 = getRandomType();
-        let t2 = getRandomType();
-        let t3 = getRandomType();
-
-        if (t1 === 'HELICOPTER' && t2 === 'HELICOPTER') t2 = 'BEER';
-        if (t2 === 'HELICOPTER' && t3 === 'HELICOPTER') t3 = 'RUM';
-
-        obstacles.push(createSingleObstacle(t1, VIRTUAL_WIDTH + 20));
-        obstacles.push(createSingleObstacle(t2, VIRTUAL_WIDTH + 220));
-        obstacles.push(createSingleObstacle(t3, VIRTUAL_WIDTH + 480));
-        minObstacleInterval = 175;
-        return;
+      if (score > 150 && rand < 0.25) {
+        type = 'HELICOPTER';
+      } else if (rand < 0.55) {
+        type = 'POLICE';
+      } else if (rand < 0.80) {
+        type = 'BEER';
+      } else {
+        type = 'RUM';
       }
 
-      // PATRÓN B: COMBO DOBLE VARIADO (Aparece a partir de 200 puntos)
-      if (allowCombos && randPattern < 0.60) {
-        // Modo "Aterrizar y saltar rápido" vs Modo "Pegados / Doble Salto"
-        const isLandingRush = Math.random() < 0.50;
-        const t1 = getRandomType();
-        let t2 = getRandomType();
-
-        if (t1 === 'HELICOPTER' && t2 === 'HELICOPTER') t2 = 'RUM';
-
-        // Distancia para "Aterrizar y saltar al instante" (280px) vs "Pegados en combo" (175px)
-        let gap = 175;
-        if (isLandingRush) {
-          gap = (t1 === 'POLICE' || t2 === 'POLICE') ? 310 : 275;
-        } else {
-          gap = (t1 === 'POLICE' || t2 === 'POLICE') ? 230 : 175;
-        }
-
-        obstacles.push(createSingleObstacle(t1, VIRTUAL_WIDTH + 20));
-        obstacles.push(createSingleObstacle(t2, VIRTUAL_WIDTH + 20 + gap));
-        minObstacleInterval = isLandingRush ? 125 : 95;
-        return;
-      }
-
-      // PATRÓN C: OBSTÁCULO INDIVIDUAL ESTÁNDAR
-      const t = getRandomType();
-      obstacles.push(createSingleObstacle(t, VIRTUAL_WIDTH + 20));
+      // Estilo Chrome Dino: Obstáculos limpios e individuales con margen de reacción garantizado
+      obstacles.push(createSingleObstacle(type, VIRTUAL_WIDTH + 20));
+      
+      // Espaciado proporcional a la velocidad para que NUNCA falte espacio para aterrizar y saltar
+      minObstacleInterval = Math.max(90, Math.floor(160 - gameSpeed * 3.5));
     }
 
     function checkCollision(rect1, rect2) {
@@ -1383,10 +1347,10 @@
         distance += gameSpeed * 0.1 * dt;
         score = Math.floor(distance);
 
-        // Aumento progresivo de velocidad (empieza muy fácil en 3.5 y acelera progresivamente hasta 18.5)
+        // Aumento suave estilo Chrome Dino (inicio en 3.5, progresión paulatina y tope en 13.0)
         const initialSpeed = 3.5;
-        const maxSpeed = 18.5;
-        gameSpeed = Math.min(maxSpeed, initialSpeed + (score * 0.012));
+        const maxSpeed = 13.0;
+        gameSpeed = Math.min(maxSpeed, initialSpeed + (score * 0.005));
 
         // Sonido de hito cada 100 puntos
         if (Math.floor(score / 100) > milestoneCounter) {
