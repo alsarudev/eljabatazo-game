@@ -1632,6 +1632,22 @@
       localStorage.setItem('jabatazo_local_leaderboard', JSON.stringify(localScores));
     }
 
+    function consolidateLeaderboard(list) {
+      const bestMap = {};
+      (list || []).forEach(entry => {
+        if (entry && entry.nombre) {
+          const name = entry.nombre.trim();
+          const scoreVal = Number(entry.score) || 0;
+          if (!bestMap[name] || scoreVal > bestMap[name].score) {
+            bestMap[name] = { nombre: name, score: scoreVal, fecha: entry.fecha || 0 };
+          }
+        }
+      });
+      const uniqueList = Object.values(bestMap);
+      uniqueList.sort((a, b) => b.score - a.score);
+      return uniqueList.slice(0, 10);
+    }
+
     function fetchLeaderboard() {
       // 1. Mostrar clasificación local inmediatamente para evitar retrasos en pantalla de Game Over
       renderLeaderboardTable(getLocalLeaderboard());
@@ -1652,12 +1668,8 @@
                 }
               });
 
-              // Ordenar puntuaciones de mayor a menor y tomar TOP 10
-              list.sort((a, b) => b.score - a.score);
-              const topList = list.slice(0, 10);
-              
               localStorage.setItem('jabatazo_user_records', JSON.stringify(userRecordsMap));
-              renderLeaderboardTable(topList);
+              renderLeaderboardTable(list);
               refreshUserUI();
             })
             .catch((err) => {
@@ -1676,7 +1688,8 @@
       return JSON.parse(localStorage.getItem('jabatazo_local_leaderboard') || '[]');
     }
 
-    function renderLeaderboardTable(list) {
+    function renderLeaderboardTable(rawList) {
+      const list = consolidateLeaderboard(rawList);
       if (!list || list.length === 0) {
         leaderboardList.innerHTML = '<div class="text-center text-slate-500 py-4 italic text-xs">¡Sé el primero en marcar un récord!</div>';
         return;
