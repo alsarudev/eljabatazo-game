@@ -183,7 +183,6 @@
                 type="text" 
                 id="player-name-input" 
                 maxlength="15" 
-                required 
                 placeholder="Ej: JabalíFiestero" 
                 class="w-full px-4 py-3 rounded-xl bg-slate-900/90 border-2 border-slate-700 text-white font-bold placeholder-slate-500 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/30 transition text-base"
               />
@@ -315,14 +314,18 @@
       }
 
       init() {
-        if (!this.ctx) {
-          const AudioContext = window.AudioContext || window.webkitAudioContext;
-          if (AudioContext) {
-            this.ctx = new AudioContext();
+        try {
+          if (!this.ctx) {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            if (AudioContext) {
+              this.ctx = new AudioContext();
+            }
           }
-        }
-        if (this.ctx && this.ctx.state === 'suspended') {
-          this.ctx.resume();
+          if (this.ctx && this.ctx.state === 'suspended') {
+            this.ctx.resume();
+          }
+        } catch (e) {
+          console.warn("AudioContext init:", e);
         }
       }
 
@@ -1041,6 +1044,8 @@
 
         if (p.alpha <= 0) {
           particles.splice(i, 1);
+        }
+      }
       ctx.globalAlpha = 1.0;
     }
 
@@ -1379,25 +1384,44 @@
        7. CONTROLADORES DE EVENTOS (TECLADO, TÁCTIL Y BOTONES)
        ========================================================================== */
 
-    // Formulario de Inicio
-    formWelcome.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const inputVal = playerNameInput.value.trim();
-      if (!inputVal) return;
+    // Función de Inicio de Juego ultrarrobusta para móviles y PC
+    function startGame() {
+      const inputVal = playerNameInput && playerNameInput.value ? playerNameInput.value.trim() : '';
+      playerName = inputVal || 'JabalíPeñista';
 
-      playerName = inputVal;
-      localStorage.setItem('jabatazo_player_name', playerName);
-      hudPlayerName.textContent = playerName;
+      try {
+        localStorage.setItem('jabatazo_player_name', playerName);
+      } catch (e) {}
 
-      soundEngine.init();
+      if (hudPlayerName) hudPlayerName.textContent = playerName;
 
-      modalWelcome.classList.add('hidden');
-      hud.classList.remove('hidden');
-      controlsHint.classList.remove('hidden');
+      try {
+        soundEngine.init();
+      } catch (e) {}
+
+      if (modalWelcome) modalWelcome.classList.add('hidden');
+      if (hud) hud.classList.remove('hidden');
+      if (controlsHint) controlsHint.classList.remove('hidden');
 
       resetGame();
       gameState = 'PLAYING';
-    });
+    }
+
+    // Formulario de Inicio
+    if (formWelcome) {
+      formWelcome.addEventListener('submit', (e) => {
+        e.preventDefault();
+        startGame();
+      });
+    }
+
+    const btnStart = document.getElementById('btn-start');
+    if (btnStart) {
+      btnStart.addEventListener('click', (e) => {
+        e.preventDefault();
+        startGame();
+      });
+    }
 
     // Botón Reintentar
     btnRestart.addEventListener('click', () => {
