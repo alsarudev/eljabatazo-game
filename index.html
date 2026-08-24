@@ -304,7 +304,7 @@
     const firebaseConfig = {
       apiKey: "AIzaSyDz29d_lDtvtb067RRKB31SHfDMS8fCD8I",
       authDomain: "eljabatazo-game.firebaseapp.com",
-      databaseURL: "https://eljabatazo-game-default-rtdb.firebaseio.com",
+      databaseURL: "https://eljabatazo-game-default-rtdb.europe-west1.firebasedatabase.app",
       projectId: "eljabatazo-game",
       storageBucket: "eljabatazo-game.firebasestorage.app",
       messagingSenderId: "4629598663",
@@ -1587,35 +1587,42 @@
     }
 
     function fetchLeaderboard() {
-      leaderboardList.innerHTML = '<div class="text-center text-slate-500 py-3 italic text-xs">Cargando clasificación...</div>';
+      // 1. Mostrar clasificación local inmediatamente para evitar retrasos en pantalla de Game Over
+      renderLeaderboardTable(getLocalLeaderboard());
 
       if (isFirebaseActive && database) {
         dbStatusBadge.textContent = 'En Vivo 🌐';
         dbStatusBadge.className = 'text-[10px] px-2 py-0.5 rounded-full font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
 
-        database.ref('leaderboard').orderByChild('score').limitToLast(10).once('value')
-          .then((snapshot) => {
-            const list = [];
-            snapshot.forEach((childSnap) => {
-              const val = childSnap.val();
-              list.push(val);
-              // Sincronizar récords de usuarios desde Firebase
-              if (val.nombre && val.score) {
-                userRecordsMap[val.nombre] = Math.max(userRecordsMap[val.nombre] || 0, val.score);
-              }
+        try {
+          database.ref('leaderboard').once('value')
+            .then((snapshot) => {
+              const list = [];
+              snapshot.forEach((childSnap) => {
+                const val = childSnap.val();
+                if (val && val.nombre && val.score !== undefined) {
+                  list.push(val);
+                  userRecordsMap[val.nombre] = Math.max(userRecordsMap[val.nombre] || 0, Number(val.score));
+                }
+              });
+
+              // Ordenar puntuaciones de mayor a menor y tomar TOP 10
+              list.sort((a, b) => b.score - a.score);
+              const topList = list.slice(0, 10);
+              
+              localStorage.setItem('jabatazo_user_records', JSON.stringify(userRecordsMap));
+              renderLeaderboardTable(topList);
+              refreshUserUI();
+            })
+            .catch((err) => {
+              console.warn("Fallo al consultar Firebase, manteniendo local:", err);
             });
-            localStorage.setItem('jabatazo_user_records', JSON.stringify(userRecordsMap));
-            list.reverse(); // Ordenar de mayor a menor
-            renderLeaderboardTable(list);
-          })
-          .catch((err) => {
-            console.warn("Fallo al leer Firebase, mostrando local:", err);
-            renderLeaderboardTable(getLocalLeaderboard());
-          });
+        } catch(e) {
+          console.warn("Firebase query error:", e);
+        }
       } else {
         dbStatusBadge.textContent = 'Modo Local 💾';
         dbStatusBadge.className = 'text-[10px] px-2 py-0.5 rounded-full font-semibold bg-amber-500/20 text-amber-400 border border-amber-500/30';
-        renderLeaderboardTable(getLocalLeaderboard());
       }
     }
 
