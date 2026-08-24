@@ -173,12 +173,37 @@
             </div>
           </div>
 
-          <!-- Input Form -->
-          <form id="form-welcome" class="space-y-4 text-left mt-6">
-            <div>
-              <label for="player-name-input" class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
-                Tu Nombre / Apodo Peñista:
-              </label>
+          <!-- Input Form & Selector de Jugadores -->
+          <form id="form-welcome" class="space-y-4 text-left mt-4">
+            
+            <!-- 1. Selector de Jugadores Existentes -->
+            <div id="container-user-select" class="hidden">
+              <div class="flex items-center justify-between mb-1.5">
+                <label for="player-select" class="block text-xs font-bold uppercase tracking-wider text-amber-400">
+                  👤 Selecciona tu Jugador:
+                </label>
+                <button type="button" id="btn-toggle-new-user" class="text-[11px] underline text-slate-400 hover:text-white font-normal lowercase cursor-pointer">
+                  + Crear nuevo
+                </button>
+              </div>
+              <select 
+                id="player-select" 
+                class="w-full px-4 py-3 rounded-xl bg-slate-900/90 border-2 border-amber-500/50 text-white font-bold focus:outline-none focus:border-amber-400 transition text-base cursor-pointer"
+              >
+                <!-- Carga dinámica de jugadores -->
+              </select>
+            </div>
+
+            <!-- 2. Campo Escribir Nuevo Nombre -->
+            <div id="container-user-input">
+              <div class="flex items-center justify-between mb-1.5">
+                <label for="player-name-input" class="block text-xs font-bold uppercase tracking-wider text-slate-300">
+                  Tu Nombre / Apodo Peñista:
+                </label>
+                <button type="button" id="btn-toggle-select-user" class="text-[11px] underline text-amber-400 hover:text-amber-300 font-normal hidden lowercase cursor-pointer">
+                  👤 Elegir existente
+                </button>
+              </div>
               <input 
                 type="text" 
                 id="player-name-input" 
@@ -277,13 +302,14 @@
        1. CONFIGURACIÓN DE FIREBASE REALTIME DATABASE (CON FALLBACK LOCAL)
        ========================================================================== */
     const firebaseConfig = {
-      apiKey: "TU_API_KEY",
-      authDomain: "TU_PROYECTO.firebaseapp.com",
-      databaseURL: "https://TU_PROYECTO-default-rtdb.firebaseio.com",
-      projectId: "TU_PROYECTO",
-      storageBucket: "TU_PROYECTO.appspot.com",
-      messagingSenderId: "123456789",
-      appId: "1:123456789:web:abc123def456"
+      apiKey: "AIzaSyDz29d_lDtvtb067RRKB31SHfDMS8fCD8I",
+      authDomain: "eljabatazo-game.firebaseapp.com",
+      databaseURL: "https://eljabatazo-game-default-rtdb.firebaseio.com",
+      projectId: "eljabatazo-game",
+      storageBucket: "eljabatazo-game.firebasestorage.app",
+      messagingSenderId: "4629598663",
+      appId: "1:4629598663:web:7ce21396617f91d9c809e2",
+      measurementId: "G-7XCFQZBZJ2"
     };
 
     let isFirebaseActive = false;
@@ -1432,10 +1458,103 @@
     }
 
     /* ==========================================================================
+       6. GESTIÓN DE BASE DE DATOS DE USUARIOS Y RÉCORDS PERSONALES
+       ========================================================================== */
+    const containerUserSelect = document.getElementById('container-user-select');
+    const containerUserInput = document.getElementById('container-user-input');
+    const playerSelect = document.getElementById('player-select');
+    const btnToggleNewUser = document.getElementById('btn-toggle-new-user');
+    const btnToggleSelectUser = document.getElementById('btn-toggle-select-user');
+
+    let userRecordsMap = {};
+
+    function loadUserDatabase() {
+      try {
+        userRecordsMap = JSON.parse(localStorage.getItem('jabatazo_user_records') || '{}');
+      } catch(e) {
+        userRecordsMap = {};
+      }
+
+      // También sincronizar desde el ranking local
+      const localScores = getLocalLeaderboard();
+      localScores.forEach(entry => {
+        if (entry.nombre) {
+          userRecordsMap[entry.nombre] = Math.max(userRecordsMap[entry.nombre] || 0, entry.score || 0);
+        }
+      });
+
+      refreshUserUI();
+    }
+
+    function refreshUserUI() {
+      const userNames = Object.keys(userRecordsMap);
+      
+      if (userNames.length > 0) {
+        playerSelect.innerHTML = userNames.map(name => {
+          const rec = userRecordsMap[name] || 0;
+          return `<option value="${escapeHtml(name)}">${escapeHtml(name)} (Récord: ${rec})</option>`;
+        }).join('');
+
+        containerUserSelect.classList.remove('hidden');
+        btnToggleSelectUser.classList.remove('hidden');
+
+        // Seleccionar usuario previo si existía
+        const savedPlayer = localStorage.getItem('jabatazo_player_name');
+        if (savedPlayer && userRecordsMap[savedPlayer] !== undefined) {
+          playerSelect.value = savedPlayer;
+          updateSelectedUser(savedPlayer);
+        } else {
+          updateSelectedUser(userNames[0]);
+        }
+      } else {
+        containerUserSelect.classList.add('hidden');
+        containerUserInput.classList.remove('hidden');
+        btnToggleSelectUser.classList.add('hidden');
+      }
+    }
+
+    function updateSelectedUser(name) {
+      if (!name) return;
+      playerName = name;
+      highScore = userRecordsMap[name] || 0;
+      localStorage.setItem('jabatazo_player_name', playerName);
+      localStorage.setItem('jabatazo_high_score', highScore);
+      if (hudHighScore) hudHighScore.textContent = `RÉCORD: ${String(highScore).padStart(5, '0')}`;
+    }
+
+    if (playerSelect) {
+      playerSelect.addEventListener('change', (e) => {
+        updateSelectedUser(e.target.value);
+      });
+    }
+
+    if (btnToggleNewUser) {
+      btnToggleNewUser.addEventListener('click', () => {
+        containerUserSelect.classList.add('hidden');
+        containerUserInput.classList.remove('hidden');
+        playerNameInput.value = '';
+        playerNameInput.focus();
+      });
+    }
+
+    if (btnToggleSelectUser) {
+      btnToggleSelectUser.addEventListener('click', () => {
+        containerUserInput.classList.add('hidden');
+        containerUserSelect.classList.remove('hidden');
+      });
+    }
+
+    /* ==========================================================================
        6. GESTIÓN DEL LEADERBOARD / RANKING GLOBAL (FIREBASE & LOCALSTORAGE)
        ========================================================================== */
 
     function saveScoreToLeaderboard(name, scoreVal) {
+      if (!name || scoreVal <= 0) return;
+
+      // Actualizar mapa de récords por usuario
+      userRecordsMap[name] = Math.max(userRecordsMap[name] || 0, scoreVal);
+      localStorage.setItem('jabatazo_user_records', JSON.stringify(userRecordsMap));
+
       const newEntry = {
         nombre: name || 'JabalíAnónimo',
         score: Number(scoreVal),
@@ -1456,6 +1575,7 @@
 
       // Cargar ranking actualizado
       fetchLeaderboard();
+      refreshUserUI();
     }
 
     function saveScoreLocal(entry) {
@@ -1477,8 +1597,14 @@
           .then((snapshot) => {
             const list = [];
             snapshot.forEach((childSnap) => {
-              list.push(childSnap.val());
+              const val = childSnap.val();
+              list.push(val);
+              // Sincronizar récords de usuarios desde Firebase
+              if (val.nombre && val.score) {
+                userRecordsMap[val.nombre] = Math.max(userRecordsMap[val.nombre] || 0, val.score);
+              }
             });
+            localStorage.setItem('jabatazo_user_records', JSON.stringify(userRecordsMap));
             list.reverse(); // Ordenar de mayor a menor
             renderLeaderboardTable(list);
           })
@@ -1531,14 +1657,21 @@
 
     // Función de Inicio de Juego ultrarrobusta para móviles y PC
     function startGame() {
-      const inputVal = playerNameInput && playerNameInput.value ? playerNameInput.value.trim() : '';
-      playerName = inputVal || 'JabalíPeñista';
+      // Verificar si se usó la lista desplegable o el cuadro de texto
+      if (containerUserSelect && !containerUserSelect.classList.contains('hidden') && playerSelect && playerSelect.value) {
+        playerName = playerSelect.value;
+      } else {
+        const inputVal = playerNameInput && playerNameInput.value ? playerNameInput.value.trim() : '';
+        playerName = inputVal || 'JabalíPeñista';
+      }
 
-      try {
-        localStorage.setItem('jabatazo_player_name', playerName);
-      } catch (e) {}
+      highScore = userRecordsMap[playerName] || parseInt(localStorage.getItem('jabatazo_high_score') || '0', 10);
+      userRecordsMap[playerName] = highScore;
+      localStorage.setItem('jabatazo_user_records', JSON.stringify(userRecordsMap));
+      localStorage.setItem('jabatazo_player_name', playerName);
 
       if (hudPlayerName) hudPlayerName.textContent = playerName;
+      if (hudHighScore) hudHighScore.textContent = `RÉCORD: ${String(highScore).padStart(5, '0')}`;
 
       try {
         soundEngine.init();
@@ -1621,6 +1754,9 @@
     window.addEventListener('mousedown', (e) => {
       handleScreenTap(e);
     });
+
+    // Inicializar Base de Datos de Usuarios y Ranking Global
+    loadUserDatabase();
 
     // Iniciar bucle de renderizado
     requestAnimationFrame(gameLoop);
