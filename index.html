@@ -5,6 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>El Jabatazo Runner 🐗🍻</title>
   
+  <!-- Disable Browser Cache for F5 Fresh Reloads -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+
   <!-- SEO & Social Meta Tags -->
   <meta name="description" content="¡Esquiva botellines de cerveza y coches de policía con el jabalí peñista en El Jabatazo Runner! Juego estilo Chrome Dino." />
   <meta name="theme-color" content="#0f172a" />
@@ -197,13 +202,6 @@
               >
                 <!-- Carga dinámica de jugadores -->
               </select>
-              
-              <!-- Botón Borrar Historial de Jugadores -->
-              <div class="mt-1 text-right">
-                <button type="button" id="btn-clear-user-history" class="text-[10px] text-red-400/80 hover:text-red-300 underline lowercase cursor-pointer">
-                  🗑️ Borrar lista de usuarios guardados
-                </button>
-              </div>
             </div>
 
             <!-- 2. Campo Escribir Nuevo Nombre -->
@@ -215,6 +213,13 @@
                 placeholder="Escribe tu apodo aquí..." 
                 class="w-full px-3 py-2.5 rounded-xl bg-slate-900/90 border-2 border-slate-700 text-white font-bold placeholder-slate-500 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/30 transition text-sm"
               />
+            </div>
+
+            <!-- Botón Borrar Historial de Jugadores (Siempre visible) -->
+            <div class="text-right">
+              <button type="button" id="btn-clear-user-history" class="text-[10px] text-red-400/90 hover:text-red-300 underline lowercase cursor-pointer">
+                🗑️ Borrar usuarios guardados
+              </button>
             </div>
 
             <button 
@@ -1474,6 +1479,7 @@
       });
 
       refreshUserUI();
+      fetchLeaderboard(); // Cargar la tabla de clasificación de inmediato en la portada al iniciar la página
     }
 
     const welcomeModeTitle = document.getElementById('welcome-mode-title');
@@ -1626,44 +1632,109 @@
       return uniqueList.slice(0, 10);
     }
 
-    function fetchLeaderboard() {
-      // 1. Mostrar clasificación local inmediatamente para evitar retrasos en pantalla de Game Over
-      renderLeaderboardTable(getLocalLeaderboard());
-
-      if (isFirebaseActive && database) {
-        dbStatusBadge.textContent = 'En Vivo 🌐';
-        dbStatusBadge.className = 'text-[10px] px-2 py-0.5 rounded-full font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
-
-        try {
-          database.ref('leaderboard').once('value')
-            .then((snapshot) => {
-              const list = [];
-              snapshot.forEach((childSnap) => {
-                const val = childSnap.val();
-                if (val && val.nombre && val.score !== undefined) {
-                  list.push(val);
-                  userRecordsMap[val.nombre] = Math.max(userRecordsMap[val.nombre] || 0, Number(val.score));
-                }
-              });
-
-              localStorage.setItem('jabatazo_user_records', JSON.stringify(userRecordsMap));
-              renderLeaderboardTable(list);
-              refreshUserUI();
-            })
-            .catch((err) => {
-              console.warn("Fallo al consultar Firebase, manteniendo local:", err);
-            });
-        } catch(e) {
-          console.warn("Firebase query error:", e);
-        }
-      } else {
-        dbStatusBadge.textContent = 'Modo Local 💾';
-        dbStatusBadge.className = 'text-[10px] px-2 py-0.5 rounded-full font-semibold bg-amber-500/20 text-amber-400 border border-amber-500/30';
+    function getLocalLeaderboard() {
+      try {
+        return JSON.parse(localStorage.getItem('jabatazo_local_leaderboard') || '[]');
+      } catch (e) {
+        return [];
       }
     }
 
-    function getLocalLeaderboard() {
-      return JSON.parse(localStorage.getItem('jabatazo_local_leaderboard') || '[]');
+    function getCombinedLeaderboard(firebaseList = []) {
+      const bestMap = {};
+
+      // 1. Cargar usuarios guardados
+      Object.keys(userRecordsMap || {}).forEach(name => {
+        if (name && userRecordsMap[name] > 0) {
+          bestMap[name] = { nombre: name, score: Number(userRecordsMap[name]) || 0 };
+        }
+      });
+
+      // 2. Cargar registros locales
+      const localList = getLocalLeaderboard();
+      localList.forEach(entry => {
+        if (entry && entry.nombre) {
+          const name = entry.nombre.trim();
+          const scoreVal = Number(entry.score) || 0;
+          if (!bestMap[name] || scoreVal > bestMap[name].score) {
+            bestMap[name] = { nombre: name, score: scoreVal };
+          }
+        }
+      });
+
+      // 3. Cargar datos de Firebase
+      (firebaseList || []).forEach(entry => {
+        if (entry && entry.nombre) {
+          const name = entry.nombre.trim();
+          const scoreVal = Number(entry.score) || 0;
+          if (!bestMap[name] || scoreVal > bestMap[name].score) {
+            bestMap[name] = { nombre: name, score: scoreVal };
+          }
+        }
+      });
+
+      const list = Object.values(bestMap);
+      list.sort((a, b) => b.score - a.score);
+      return list.slice(0, 10);
+    }
+
+    function updateUserSelectorDropdown() {
+      const userNames = Object.keys(userRecordsMap);
+      if (userNames.length > 0 && playerSelect) {
+        const currentVal = playerSelect.value || localStorage.getItem('jabatazo_player_name');
+        playerSelect.innerHTML = userNames.map(name => {
+          const rec = userRecordsMap[name] || 0;
+          return `<option value="${escapeHtml(name)}">${escapeHtml(name)} (Récord: ${rec})</option>`;
+        }).join('');
+
+        if (currentVal && userRecordsMap[currentVal] !== undefined) {
+          playerSelect.value = currentVal;
+        }
+      }
+    }
+
+    function fetchLeaderboard() {
+      // 1. Mostrar de inmediato la combinación de récords locales (0 ms de delay)
+      renderLeaderboardTable(getCombinedLeaderboard());
+
+      if (isFirebaseActive && database) {
+        if (dbStatusBadge) {
+          dbStatusBadge.textContent = 'En Vivo 🌐';
+          dbStatusBadge.className = 'text-[10px] px-2 py-0.5 rounded-full font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
+        }
+
+        try {
+          // Consultar a Firebase los datos más recientes del servidor en cada F5 / recarga
+          database.ref('leaderboard').once('value')
+            .then((snapshot) => {
+              const fbList = [];
+              if (snapshot && snapshot.exists()) {
+                snapshot.forEach((childSnap) => {
+                  const val = childSnap.val();
+                  if (val && val.nombre) {
+                    fbList.push(val);
+                    userRecordsMap[val.nombre] = Math.max(userRecordsMap[val.nombre] || 0, Number(val.score) || 0);
+                  }
+                });
+              }
+              localStorage.setItem('jabatazo_user_records', JSON.stringify(userRecordsMap));
+              renderLeaderboardTable(getCombinedLeaderboard(fbList));
+              updateUserSelectorDropdown();
+            })
+            .catch((err) => {
+              console.warn("Fallo Firebase, usando datos locales:", err);
+              renderLeaderboardTable(getCombinedLeaderboard());
+            });
+        } catch(e) {
+          renderLeaderboardTable(getCombinedLeaderboard());
+        }
+      } else {
+        if (dbStatusBadge) {
+          dbStatusBadge.textContent = 'Modo Local 💾';
+          dbStatusBadge.className = 'text-[10px] px-2 py-0.5 rounded-full font-semibold bg-amber-500/20 text-amber-400 border border-amber-500/30';
+        }
+        renderLeaderboardTable(getCombinedLeaderboard());
+      }
     }
 
     function renderLeaderboardTable(rawList) {
