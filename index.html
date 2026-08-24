@@ -1640,44 +1640,6 @@
       }
     }
 
-    function getCombinedLeaderboard(firebaseList = []) {
-      const bestMap = {};
-
-      // 1. Cargar usuarios guardados
-      Object.keys(userRecordsMap || {}).forEach(name => {
-        if (name && userRecordsMap[name] > 0) {
-          bestMap[name] = { nombre: name, score: Number(userRecordsMap[name]) || 0 };
-        }
-      });
-
-      // 2. Cargar registros locales
-      const localList = getLocalLeaderboard();
-      localList.forEach(entry => {
-        if (entry && entry.nombre) {
-          const name = entry.nombre.trim();
-          const scoreVal = Number(entry.score) || 0;
-          if (!bestMap[name] || scoreVal > bestMap[name].score) {
-            bestMap[name] = { nombre: name, score: scoreVal };
-          }
-        }
-      });
-
-      // 3. Cargar datos de Firebase
-      (firebaseList || []).forEach(entry => {
-        if (entry && entry.nombre) {
-          const name = entry.nombre.trim();
-          const scoreVal = Number(entry.score) || 0;
-          if (!bestMap[name] || scoreVal > bestMap[name].score) {
-            bestMap[name] = { nombre: name, score: scoreVal };
-          }
-        }
-      });
-
-      const list = Object.values(bestMap);
-      list.sort((a, b) => b.score - a.score);
-      return list.slice(0, 10);
-    }
-
     function updateUserSelectorDropdown() {
       const userNames = Object.keys(userRecordsMap);
       if (userNames.length > 0 && playerSelect) {
@@ -1693,9 +1655,11 @@
       }
     }
 
+    let isFirebaseListenerAttached = false;
+
     function fetchLeaderboard() {
-      // 1. Mostrar de inmediato la combinación de récords locales (0 ms de delay)
-      renderLeaderboardTable(getCombinedLeaderboard());
+      // 1. Mostrar de inmediato la clasificación local en caché (0 ms de delay)
+      renderLeaderboardTable(getLocalLeaderboard());
 
       if (isFirebaseActive && database) {
         if (dbStatusBadge) {
@@ -1703,37 +1667,45 @@
           dbStatusBadge.className = 'text-[10px] px-2 py-0.5 rounded-full font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
         }
 
-        try {
-          // Consultar a Firebase los datos más recientes del servidor en cada F5 / recarga
-          database.ref('leaderboard').once('value')
-            .then((snapshot) => {
+        if (!isFirebaseListenerAttached) {
+          isFirebaseListenerAttached = true;
+          try {
+            // Escuchar cambios en tiempo real en la base de datos de Firebase
+            database.ref('leaderboard').on('value', (snapshot) => {
               const fbList = [];
               if (snapshot && snapshot.exists()) {
                 snapshot.forEach((childSnap) => {
                   const val = childSnap.val();
-                  if (val && val.nombre) {
+                  if (val && val.nombre && val.score !== undefined) {
                     fbList.push(val);
                     userRecordsMap[val.nombre] = Math.max(userRecordsMap[val.nombre] || 0, Number(val.score) || 0);
                   }
                 });
               }
+
               localStorage.setItem('jabatazo_user_records', JSON.stringify(userRecordsMap));
-              renderLeaderboardTable(getCombinedLeaderboard(fbList));
+              if (fbList.length > 0) {
+                localStorage.setItem('jabatazo_local_leaderboard', JSON.stringify(fbList));
+                renderLeaderboardTable(fbList);
+              } else {
+                renderLeaderboardTable(getLocalLeaderboard());
+              }
               updateUserSelectorDropdown();
-            })
-            .catch((err) => {
-              console.warn("Fallo Firebase, usando datos locales:", err);
-              renderLeaderboardTable(getCombinedLeaderboard());
+            }, (err) => {
+              console.warn("Fallo lectura en vivo Firebase:", err);
+              renderLeaderboardTable(getLocalLeaderboard());
             });
-        } catch(e) {
-          renderLeaderboardTable(getCombinedLeaderboard());
+          } catch(e) {
+            console.warn("Excepción Firebase listener:", e);
+            renderLeaderboardTable(getLocalLeaderboard());
+          }
         }
       } else {
         if (dbStatusBadge) {
           dbStatusBadge.textContent = 'Modo Local 💾';
           dbStatusBadge.className = 'text-[10px] px-2 py-0.5 rounded-full font-semibold bg-amber-500/20 text-amber-400 border border-amber-500/30';
         }
-        renderLeaderboardTable(getCombinedLeaderboard());
+        renderLeaderboardTable(getLocalLeaderboard());
       }
     }
 
