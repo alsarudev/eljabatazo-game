@@ -174,7 +174,7 @@
         <div class="glass-card max-w-md w-full rounded-3xl p-4 sm:p-6 text-center shadow-2xl border-2 border-amber-500/40 max-h-[92vh] flex flex-col justify-between overflow-y-auto custom-scrollbar">
           
           <!-- Header -->
-          <div class="shrink-0">
+          <div class="shrink-0 relative">
             <div class="inline-block px-3 py-0.5 bg-amber-500/20 text-amber-400 font-bold text-[11px] uppercase tracking-widest rounded-full mb-1 border border-amber-500/30">
               ¡Peña El Jabatazo!
             </div>
@@ -251,14 +251,25 @@
               </div>
             </div>
 
-            <button 
-              type="submit" 
-              id="btn-start"
-              class="w-full py-3.5 px-5 rounded-xl bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 hover:from-amber-400 hover:to-red-400 text-slate-950 font-black text-base uppercase tracking-wider font-arcade shadow-[0_0_20px_rgba(245,158,11,0.5)] transition hover:scale-[1.02] active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2"
-            >
-              <span>¡A CORRER!</span>
-              <span class="text-xl">💨</span>
-            </button>
+            <div class="space-y-2 mt-2">
+              <button 
+                type="submit" 
+                id="btn-start"
+                class="w-full py-3.5 px-5 rounded-xl bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 hover:from-amber-400 hover:to-red-400 text-slate-950 font-black text-base uppercase tracking-wider font-arcade shadow-[0_0_20px_rgba(245,158,11,0.5)] transition hover:scale-[1.02] active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2"
+              >
+                <span>¡A CORRER!</span>
+                <span class="text-xl">💨</span>
+              </button>
+              
+              <button 
+                type="button" 
+                id="btn-show-instructions"
+                class="w-full py-2 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-300 font-bold text-xs uppercase tracking-wide transition flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <span>ℹ️</span>
+                <span>Cómo jugar</span>
+              </button>
+            </div>
           </form>
 
           <!-- Ranking TOP 10 en la Pantalla Inicial -->
@@ -286,6 +297,39 @@
           <div class="mt-2 text-[10px] text-slate-400 text-center shrink-0">
             Móvil: Toca pantalla | PC: Espacio
           </div>
+        </div>
+      </div>
+
+      <!-- MODAL INSTRUCCIONES -->
+      <div id="modal-instructions" class="absolute inset-0 flex items-center justify-center p-4 bg-slate-950/95 backdrop-blur-xl z-50 hidden">
+        <div class="glass-card max-w-md w-full rounded-3xl p-5 text-center shadow-[0_0_40px_rgba(245,158,11,0.2)] animate-in fade-in zoom-in duration-300 relative">
+          <h2 class="text-xl font-black text-white font-arcade uppercase tracking-wide mb-3 drop-shadow-md">CÓMO JUGAR</h2>
+          <div class="space-y-4 text-left text-sm text-slate-200 bg-slate-900/60 p-4 rounded-2xl border border-slate-700/50">
+            <div class="flex items-start gap-3">
+              <span class="text-2xl mt-0.5">🏃</span>
+              <div>
+                <strong class="text-amber-400 font-bold block">Esquiva los Obstáculos</strong>
+                <span class="text-xs text-slate-400">Salta el Ron, la Cerveza, el Pollo, el Policía y el Helicóptero. Si chocas, mueres.</span>
+              </div>
+            </div>
+            <div class="flex items-start gap-3 border-t border-slate-700/50 pt-3">
+              <span class="text-2xl mt-0.5">👼</span>
+              <div>
+                <strong class="text-emerald-400 font-bold block">Recompensa Divina</strong>
+                <span class="text-xs text-slate-400">Atrapa la pastilla de Jesús. Te otorgará <strong class="text-amber-300">2 escudos</strong> durante <strong class="text-amber-300">20 segundos</strong>. Con este escudo podrás atravesar hasta 2 Pollos o Cervezas sin morir.</span>
+              </div>
+            </div>
+            <div class="flex items-start gap-3 border-t border-slate-700/50 pt-3">
+              <span class="text-2xl mt-0.5">⚠️</span>
+              <div>
+                <strong class="text-red-400 font-bold block">¡Cuidado!</strong>
+                <span class="text-xs text-slate-400">El escudo NO te protege del Policía, el Ron ni el Helicóptero.</span>
+              </div>
+            </div>
+          </div>
+          <button type="button" id="btn-instructions-start" class="mt-5 w-full py-3 px-5 rounded-xl bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white font-black text-sm uppercase font-arcade shadow-[0_0_15px_rgba(16,185,129,0.4)] transition hover:scale-[1.02] active:scale-[0.98] cursor-pointer">
+            ¡ENTENDIDO!
+          </button>
         </div>
       </div>
 
@@ -746,6 +790,12 @@
     let lastTime = 0;
     let milestoneCounter = 0;
 
+    // Estado del Escudo / Recompensa de Jesús
+    let jesusBuffActive = false;
+    let jesusBuffTimer = 0;
+    let jesusBuffCharges = 0;
+    let jesusCooldownTimer = 0;
+
     // Personaje Jabalí — Físicas ESCALADAS al canvas 1000×450
     // gravity=1.0, jump=-18 → salta 162px (44% del área), duración 0.6s, ligero y reactivo
     const OBSTACLE_STD_HEIGHT = 50; 
@@ -825,16 +875,23 @@
       chickenWidth: 70,
       chickenHeight: 60,
 
-      // 7. Imagen de Fondo / Escenario (fondo_encinar.webp)
+      // 7. Imagen de recompensa de Jesús (Escudo)
+      jesusUrl: 'jesus.webp',
+      jesusWidth: 120,
+
+      // 8. Imagen de Fondo / Escenario (fondo_encinar.webp)
       backgroundUrl: 'fondo_encinar.webp',
 
-      // 8. Música de fondo
+      // 9. Música de fondo
       musicUrl: 'jabatazo-hit.mp3'
     };
 
     // Objetos Image
     const customBoarImg = new Image();
     if (CUSTOM_ASSETS.boarUrl) customBoarImg.src = CUSTOM_ASSETS.boarUrl;
+
+    const customJesusImg = new Image();
+    if (CUSTOM_ASSETS.jesusUrl) customJesusImg.src = CUSTOM_ASSETS.jesusUrl;
 
     const customBeerImg = new Image();
     if (CUSTOM_ASSETS.beerUrl) customBeerImg.src = CUSTOM_ASSETS.beerUrl;
@@ -865,6 +922,31 @@
     function drawBoar(b, state) {
       ctx.save();
       ctx.translate(b.x, b.y);
+
+      // Aro luminoso amarillo si tiene la recompensa de Jesús activa (DIBUJADO DETRÁS DEL JABALÍ)
+      if (jesusBuffActive) {
+        ctx.save();
+        const pulse = Math.abs(Math.sin(Date.now() / 150));
+        
+        // Dibujar el aro (elipse para que cubre al jabalí alargado)
+        ctx.beginPath();
+        ctx.ellipse(b.width / 2, b.height / 2, b.width / 2 + 15, b.height / 2 + 30, 0, 0, Math.PI * 2);
+        
+        // Brillo del aro
+        ctx.shadowColor = '#fbbf24';
+        ctx.shadowBlur = 15 + pulse * 15;
+        ctx.strokeStyle = `rgba(251, 191, 36, ${0.7 + pulse * 0.3})`;
+        ctx.lineWidth = 5;
+        ctx.stroke();
+        
+        ctx.restore();
+        
+        // Dibujar indicador de cargas arriba
+        ctx.fillStyle = '#fbbf24';
+        ctx.font = 'bold 12px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(`🛡️ ${jesusBuffCharges}`, b.width/2, -30);
+      }
 
       // Si se ha especificado una imagen personalizada del jabalí, dibujarla respetando su proporción natural
       if (CUSTOM_ASSETS.boarUrl && customBoarImg.complete && customBoarImg.naturalWidth !== 0) {
@@ -1224,6 +1306,30 @@
       ctx.restore();
     }
 
+    // Dibujar Recompensa de Jesús 👼
+    function drawJesusReward(obs) {
+      ctx.save();
+      ctx.translate(obs.x, obs.y);
+
+      // Efecto de brillo detrás de la recompensa
+      const glow = Math.abs(Math.sin(Date.now() / 200)) * 10;
+      ctx.shadowColor = '#fcd34d';
+      ctx.shadowBlur = 10 + glow;
+
+      if (CUSTOM_ASSETS.jesusUrl && customJesusImg.complete && customJesusImg.naturalWidth !== 0) {
+        const imgRatio = customJesusImg.naturalWidth / customJesusImg.naturalHeight;
+        const renderW = obs.height * imgRatio;
+        const renderX = (obs.width - renderW) / 2;
+        ctx.drawImage(customJesusImg, renderX, 0, renderW, obs.height);
+      } else {
+        // Fallback procedimental (una cruz dorada brillante)
+        ctx.fillStyle = '#fbbf24';
+        ctx.fillRect(obs.width/2 - 8, 5, 16, obs.height - 10);
+        ctx.fillRect(10, obs.height/3, obs.width - 20, 16);
+      }
+      ctx.restore();
+    }
+
     // Dibujar Obstáculo Pollo 🐔 (pollo.webp)
     function drawChickenObstacle(obs) {
       ctx.save();
@@ -1391,6 +1497,11 @@
       minObstacleInterval = 450;
       lastFrameTime = 0;
 
+      jesusBuffActive = false;
+      jesusBuffTimer = 0;
+      jesusBuffCharges = 0;
+      jesusCooldownTimer = 0;
+
       boar.y = GROUND_Y - boar.height;
       boar.vy = 0;
       boar.isGrounded = true;
@@ -1424,6 +1535,14 @@
           y: GROUND_Y - 165,
           width: hWidth,
           height: 75
+        };
+      } else if (type === 'JESUS') {
+        return {
+          type: 'JESUS',
+          x: xOffset,
+          y: GROUND_Y - 180, // Subido para compensar el tamaño gigante y obligar a saltar
+          width: CUSTOM_ASSETS.jesusWidth || 120,
+          height: CUSTOM_ASSETS.jesusWidth || 120
         };
       } else if (type === 'CHICKEN') {
         return {
@@ -1464,16 +1583,22 @@
       const rand = Math.random();
       let type = 'BEER';
 
-      if (score > 120 && rand < 0.20) {
-        type = 'HELICOPTER'; // Único obstáculo en alto
-      } else if (rand < 0.42) {
-        type = 'CHICKEN'; // Pollo en el suelo
-      } else if (rand < 0.65) {
-        type = 'POLICE'; // Guardia en el suelo
+      const hasJesusOnScreen = obstacles.some(obs => obs.type === 'JESUS');
+      const canSpawnJesus = !jesusBuffActive && jesusCooldownTimer <= 0 && !hasJesusOnScreen;
+
+      // 20% de probabilidad de generar la recompensa de Jesús SOLO si está disponible
+      if (score > 20 && canSpawnJesus && rand < 0.20) {
+        type = 'JESUS';
+      } else if (score > 120 && rand < 0.35) {
+        type = 'HELICOPTER'; // 15% (de 0.20 a 0.35)
+      } else if (rand < 0.55) {
+        type = 'CHICKEN'; // 20% (de 0.35 a 0.55)
+      } else if (rand < 0.70) {
+        type = 'POLICE'; // 15% (de 0.55 a 0.70)
       } else if (rand < 0.85) {
-        type = 'BEER'; // Cerveza en el suelo
+        type = 'BEER'; // 15% (de 0.70 a 0.85)
       } else {
-        type = 'RUM'; // Ron en el suelo
+        type = 'RUM'; // 15% (de 0.85 a 1.0)
       }
 
       // Estilo Chrome Dino: Obstáculos limpios e individuales con margen de reacción garantizado
@@ -1578,6 +1703,17 @@
 
         boar.legCycle += gameSpeed * 0.035 * dt;
 
+        // Actualizar temporizadores de recompensa de Jesús
+        if (jesusBuffActive) {
+          jesusBuffTimer -= deltaSec;
+          if (jesusBuffTimer <= 0) {
+            jesusBuffActive = false;
+            jesusCooldownTimer = 20; // Iniciar tiempo de espera de 20s
+          }
+        } else if (jesusCooldownTimer > 0) {
+          jesusCooldownTimer -= deltaSec;
+        }
+
         // Crear polvo al correr
         if (boar.isGrounded && Math.random() < 0.3 * dt) {
           createDustParticle(boar.x + 10, GROUND_Y - 5);
@@ -1605,13 +1741,39 @@
             drawHelicopterObstacle(obs);
           } else if (obs.type === 'RUM') {
             drawRumObstacle(obs);
+          } else if (obs.type === 'JESUS') {
+            drawJesusReward(obs);
           }
 
           // Comprobar colisión
           if (checkCollision(boar, obs)) {
-            createBeerSplash(obs.x + obs.width / 2, obs.y + obs.height / 2);
-            gameOver();
-            break;
+            if (obs.type === 'JESUS') {
+              // Activar recompensa
+              jesusBuffActive = true;
+              jesusBuffCharges = 2;
+              jesusBuffTimer = 20; // 20 segundos
+              soundEngine.playScoreMilestone(); // Sonido especial
+              // Brillos dorados
+              for(let j=0; j<8; j++) createBeerSplash(obs.x + obs.width / 2, obs.y + obs.height / 2);
+              obstacles.splice(i, 1);
+              continue;
+            } else if (jesusBuffActive && (obs.type === 'CHICKEN' || obs.type === 'BEER')) {
+              // Usar escudo
+              jesusBuffCharges--;
+              if (jesusBuffCharges <= 0) {
+                jesusBuffActive = false;
+                jesusCooldownTimer = 20; // Iniciar tiempo de espera de 20s tras romperse
+              }
+              soundEngine.playJump(); // Sonido de impacto menor
+              for(let j=0; j<5; j++) createBeerSplash(obs.x + obs.width / 2, obs.y + obs.height / 2);
+              obstacles.splice(i, 1);
+              continue;
+            } else {
+              // Colisión mortal normal
+              createBeerSplash(obs.x + obs.width / 2, obs.y + obs.height / 2);
+              gameOver();
+              break;
+            }
           }
 
           // Eliminar si sale de pantalla
@@ -2103,15 +2265,58 @@
       } catch (e) {}
 
       const mWelcome = document.getElementById('modal-welcome');
-      const hudEl = document.getElementById('hud');
-      const hintEl = document.getElementById('controls-hint');
+      const mInstructions = document.getElementById('modal-instructions');
 
       if (mWelcome) mWelcome.classList.add('hidden');
+
+      if (!sessionStorage.getItem('jabatazo_instructions_seen')) {
+        sessionStorage.setItem('jabatazo_instructions_seen', 'true');
+        isStartingGame = true;
+        if (mInstructions) mInstructions.classList.remove('hidden');
+      } else {
+        finalizeStartGame();
+      }
+    }
+
+    let isStartingGame = false;
+
+    function finalizeStartGame() {
+      const hudEl = document.getElementById('hud');
+      const hintEl = document.getElementById('controls-hint');
+      const mInstructions = document.getElementById('modal-instructions');
+
+      if (mInstructions) mInstructions.classList.add('hidden');
       if (hudEl) hudEl.classList.remove('hidden');
       if (hintEl) hintEl.classList.remove('hidden');
 
       resetGame();
       gameState = 'PLAYING';
+    }
+
+    const btnInstStart = document.getElementById('btn-instructions-start');
+    if (btnInstStart) {
+      btnInstStart.addEventListener('click', () => {
+        if (isStartingGame) {
+          finalizeStartGame();
+        } else {
+          // Solo estaba viendo las instrucciones
+          const mWelcome = document.getElementById('modal-welcome');
+          const mInstructions = document.getElementById('modal-instructions');
+          if (mInstructions) mInstructions.classList.add('hidden');
+          if (mWelcome) mWelcome.classList.remove('hidden');
+        }
+      });
+    }
+
+    const btnShowInstructions = document.getElementById('btn-show-instructions');
+    if (btnShowInstructions) {
+      btnShowInstructions.addEventListener('click', () => {
+        isStartingGame = false;
+        const mWelcome = document.getElementById('modal-welcome');
+        const mInstructions = document.getElementById('modal-instructions');
+        if (mWelcome) mWelcome.classList.add('hidden');
+        if (mInstructions) mInstructions.classList.remove('hidden');
+      });
     }
 
     // Formulario de Inicio
