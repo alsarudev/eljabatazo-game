@@ -742,7 +742,7 @@
 
     let score = 0;
     let distance = 0;
-    let gameSpeed = 6;
+    let gameSpeed = 8.5;
     let lastTime = 0;
     let milestoneCounter = 0;
 
@@ -755,8 +755,8 @@
       width: 190,
       height: 60,
       vy: 0,
-      gravity: 1.0,
-      jumpForce: -18,
+      gravity: 0.85,          // Flota un poco más
+      jumpForce: -18,         // Salto más alto (190px) y duradero (0.7s) para compensar el ancho del jabalí
       isGrounded: true,
       legCycle: 0,
       dustParticles: []
@@ -1383,7 +1383,7 @@
     function resetGame() {
       score = 0;
       distance = 0;
-      gameSpeed = 6;            // Velocidad inicial T-Rex
+      gameSpeed = 8.5;            // Velocidad inicial fluida
       milestoneCounter = 0;
       obstacles = [];
       particles = [];
@@ -1486,8 +1486,8 @@
     }
 
     function checkCollision(rect1, rect2) {
-      // Jabalí (rect1): 35% shrink horizontal — sprite 190px pero cuerpo real ~57px
-      const shrink1X = rect1.width * 0.35;
+      // Jabalí (rect1): 15% shrink horizontal para que sea más fiel al tamaño visual del sprite
+      const shrink1X = rect1.width * 0.15;
       const shrink1Y = rect1.height * 0.20;
       // Obstáculo (rect2): 15% shrink — tolerancia estándar
       const shrink2X = rect2.width * 0.15;
@@ -1546,10 +1546,10 @@
         distance += gameSpeed * 0.1 * dt;
         score = Math.floor(distance);
 
-        // Progresión de velocidad T-Rex (inicio en 6, aceleración gradual y tope en 13)
-        const initialSpeed = 6;
-        const maxSpeed = 13;
-        gameSpeed = Math.min(maxSpeed, initialSpeed + (score * 0.001));
+        // Progresión de velocidad: inicio en 8.5 (más fluido para cruzar rápido), tope en 16
+        const initialSpeed = 8.5;
+        const maxSpeed = 16;
+        gameSpeed = Math.min(maxSpeed, initialSpeed + (score * 0.004)); // Aumenta 1 punto de velocidad cada 250 puntos
 
         // Sonido de hito cada 100 puntos
         if (Math.floor(score / 100) > milestoneCounter) {
