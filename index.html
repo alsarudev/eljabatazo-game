@@ -95,6 +95,11 @@
       border-radius: 4px;
     }
 
+    /* Responsive: mantener proporciones del canvas en todas las pantallas */
+    #canvas-container {
+      aspect-ratio: 20 / 9; /* 1000:450 virtual canvas ratio */
+    }
+
     /* Pantalla Completa en Móviles sin Marco */
     @media (max-width: 768px) {
       #game-wrapper {
@@ -108,6 +113,17 @@
         border-radius: 0 !important;
         border: none !important;
         box-shadow: none !important;
+        width: 100vw !important;
+        max-height: 100vh !important;
+      }
+    }
+
+    /* Landscape móvil: llenar pantalla completa */
+    @media (max-width: 768px) and (orientation: landscape) {
+      #canvas-container {
+        height: 100vh !important;
+        width: auto !important;
+        max-width: 100vw !important;
       }
     }
   </style>
@@ -726,21 +742,21 @@
 
     let score = 0;
     let distance = 0;
-    let gameSpeed = 4.5;
+    let gameSpeed = 6;
     let lastTime = 0;
     let milestoneCounter = 0;
 
-    // Personaje Jabalí (Salto fluido y equilibrado)
+    // Personaje Jabalí (Salto calibrado: 97px altura, 0.57s duración)
+    const OBSTACLE_STD_HEIGHT = 50; // Altura estándar de TODOS los obstáculos de suelo
     const boar = {
       x: 110,
       y: GROUND_Y - 60,
       width: 190,
       height: 60,
       vy: 0,
-      gravity: 0.48,
-      jumpForce: -14.6,
+      gravity: 0.7,           // Gravedad alta → caída con peso inmediato
+      jumpForce: -12,          // Impulso → 97px de altura, sobra 47px sobre obstáculos de 50px
       isGrounded: true,
-      canDoubleJump: true,
       legCycle: 0,
       dustParticles: []
     };
@@ -1381,18 +1397,17 @@
     function resetGame() {
       score = 0;
       distance = 0;
-      gameSpeed = 4.5;
+      gameSpeed = 6;            // Velocidad inicial T-Rex
       milestoneCounter = 0;
       obstacles = [];
       particles = [];
-      obstacleTimer = 70; // Carga muy rápida del primer obstáculo
-      minObstacleInterval = 75;
+      obstacleTimer = 350;        // Primer obstáculo aparece rápido pero con margen
+      minObstacleInterval = 450;
       lastFrameTime = 0;
 
       boar.y = GROUND_Y - boar.height;
       boar.vy = 0;
       boar.isGrounded = true;
-      boar.canDoubleJump = true;
 
       hudScore.textContent = '00000';
       hudHighScore.textContent = `RÉCORD: ${String(highScore).padStart(5, '0')}`;
@@ -1402,23 +1417,12 @@
       if (gameState !== 'PLAYING') return;
 
       if (boar.isGrounded) {
-        // Primer Salto desde el suelo
         boar.vy = boar.jumpForce;
         boar.isGrounded = false;
-        boar.canDoubleJump = true;
         soundEngine.playJump();
 
         for (let i = 0; i < 5; i++) {
           createDustParticle(boar.x + 20, GROUND_Y - 5);
-        }
-      } else if (boar.canDoubleJump) {
-        // ¡DOBLE SALTO EN EL AIRE!
-        boar.vy = boar.jumpForce * 0.85;
-        boar.canDoubleJump = false;
-        soundEngine.playJump();
-
-        for (let i = 0; i < 8; i++) {
-          createDustParticle(boar.x + 40, boar.y + 30);
         }
       }
     }
@@ -1429,46 +1433,45 @@
         return {
           type: 'HELICOPTER',
           x: xOffset,
-          y: GROUND_Y - 165, // Elevación garantizada: permite correr por debajo de pie con 30px de espacio libre
+          y: GROUND_Y - 165,
           width: hWidth,
           height: 75
         };
       } else if (type === 'CHICKEN') {
         const cWidth = CUSTOM_ASSETS.chickenWidth || 70;
-        const cHeight = CUSTOM_ASSETS.chickenHeight || 60;
         return {
           type: 'CHICKEN',
           x: xOffset,
-          y: GROUND_Y - cHeight, // SÓLO EN EL SUELO
+          y: GROUND_Y - OBSTACLE_STD_HEIGHT,
           width: cWidth,
-          height: cHeight
+          height: OBSTACLE_STD_HEIGHT
         };
       } else if (type === 'POLICE') {
         const pWidth = CUSTOM_ASSETS.policeWidth || 160;
         return {
           type: 'POLICE',
           x: xOffset,
-          y: GROUND_Y - 40, // SÓLO EN EL SUELO
+          y: GROUND_Y - OBSTACLE_STD_HEIGHT,
           width: pWidth,
-          height: 40
+          height: OBSTACLE_STD_HEIGHT
         };
       } else if (type === 'BEER') {
         const bWidth = CUSTOM_ASSETS.beerWidth || 104;
         return {
           type: 'BEER',
           x: xOffset,
-          y: GROUND_Y - 50, // SÓLO EN EL SUELO
+          y: GROUND_Y - OBSTACLE_STD_HEIGHT,
           width: bWidth,
-          height: 50
+          height: OBSTACLE_STD_HEIGHT
         };
       } else {
         const rWidth = CUSTOM_ASSETS.rumWidth || 108;
         return {
           type: 'RUM',
           x: xOffset,
-          y: GROUND_Y - 52, // SÓLO EN EL SUELO
+          y: GROUND_Y - OBSTACLE_STD_HEIGHT,
           width: rWidth,
-          height: 52
+          height: OBSTACLE_STD_HEIGHT
         };
       }
     }
@@ -1492,31 +1495,24 @@
       // Estilo Chrome Dino: Obstáculos limpios e individuales con margen de reacción garantizado
       obstacles.push(createSingleObstacle(type, VIRTUAL_WIDTH + 20));
       
-      // Espaciado amplio y de fácil reacción
-      minObstacleInterval = Math.max(160, Math.floor(220 - gameSpeed * 3.0));
+      // Distancia proporcional a velocidad actual (escala T-Rex adaptada a canvas 1000px)
+      const MIN_GAP = 450;
+      const MAX_GAP = 700;
+      minObstacleInterval = MIN_GAP + Math.random() * (MAX_GAP - MIN_GAP) + (gameSpeed * 5);
     }
 
     function checkCollision(rect1, rect2) {
-      // Hitbox milimétrica y precisa ajustada al contorno visual real de cada imagen
-      let paddingX = 6;
-      let paddingY = 4;
-
-      if (rect2.type === 'CHICKEN') {
-        paddingX = 4;
-        paddingY = 4;
-      } else if (rect2.type === 'BEER' || rect2.type === 'RUM') {
-        paddingX = 6;
-        paddingY = 4;
-      } else if (rect2.type === 'POLICE' || rect2.type === 'HELICOPTER' || rect2.type === 'AIRPLANE') {
-        paddingX = 10;
-        paddingY = 4;
-      }
+      // Hitboxes 15% más pequeñas que el sprite visual → tolerancia justa
+      const shrink1X = rect1.width * 0.15;
+      const shrink1Y = rect1.height * 0.15;
+      const shrink2X = rect2.width * 0.15;
+      const shrink2Y = rect2.height * 0.15;
 
       return (
-        rect1.x + paddingX < rect2.x + rect2.width - paddingX &&
-        rect1.x + rect1.width - paddingX > rect2.x + paddingX &&
-        rect1.y + paddingY < rect2.y + rect2.height - paddingY &&
-        rect1.y + rect1.height - paddingY > rect2.y + paddingY
+        rect1.x + shrink1X < rect2.x + rect2.width - shrink2X &&
+        rect1.x + rect1.width - shrink1X > rect2.x + shrink2X &&
+        rect1.y + shrink1Y < rect2.y + rect2.height - shrink2Y &&
+        rect1.y + rect1.height - shrink1Y > rect2.y + shrink2Y
       );
     }
 
@@ -1565,10 +1561,10 @@
         distance += gameSpeed * 0.1 * dt;
         score = Math.floor(distance);
 
-        // Progresión de velocidad arcade de ritmo alto (inicio en 4.5, rápida aceleración y tope en 22.0)
-        const initialSpeed = 4.5;
-        const maxSpeed = 22.0;
-        gameSpeed = Math.min(maxSpeed, initialSpeed + (score * 0.016));
+        // Progresión de velocidad T-Rex (inicio en 6, aceleración gradual y tope en 13)
+        const initialSpeed = 6;
+        const maxSpeed = 13;
+        gameSpeed = Math.min(maxSpeed, initialSpeed + (score * 0.001));
 
         // Sonido de hito cada 100 puntos
         if (Math.floor(score / 100) > milestoneCounter) {
@@ -1593,7 +1589,6 @@
           boar.y = GROUND_Y - boar.height;
           boar.vy = 0;
           boar.isGrounded = true;
-          boar.canDoubleJump = true;
         }
 
         boar.legCycle += gameSpeed * 0.035 * dt;
@@ -1603,16 +1598,11 @@
           createDustParticle(boar.x + 10, GROUND_Y - 5);
         }
 
-        // Gestión de Obstáculos de Alta Frecuencia (Espaciados rítmicamente pero muy seguidos)
-        obstacleTimer += 1 * dt;
+        // Gestión de Obstáculos T-Rex: spawn basado en distancia recorrida
+        obstacleTimer += gameSpeed * dt;
         if (obstacleTimer > minObstacleInterval) {
-          const spawnChance = Math.min(0.35, 0.18 + (gameSpeed * 0.008));
-          if (Math.random() < spawnChance * dt) {
-            spawnObstacle();
-            obstacleTimer = 0;
-            // Distancia más corta entre obstáculos a medida que acelera
-            minObstacleInterval = Math.max(38, Math.floor(100 - (gameSpeed * 2.8)));
-          }
+          spawnObstacle();
+          obstacleTimer = 0;
         }
 
         for (let i = obstacles.length - 1; i >= 0; i--) {
