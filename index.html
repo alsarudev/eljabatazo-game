@@ -882,8 +882,11 @@
       // 8. Imagen de Fondo / Escenario (fondo_encinar.webp)
       backgroundUrl: 'fondo_encinar.webp',
       
-      // 8b. Imagen de Fondo a partir de 600 puntos
+      // 8b. Imagen de Fondo a partir de 1000 puntos
       xirinBgUrl: 'xirin.webp',
+
+      // 8c. Imagen de Fondo a partir de 2000 puntos
+      poolBgUrl: 'piscina.webp',
 
       // 9. Música de fondo
       musicUrl: 'jabatazo-hit.mp3'
@@ -919,6 +922,9 @@
 
     const customXirinBgImg = new Image();
     if (CUSTOM_ASSETS.xirinBgUrl) customXirinBgImg.src = CUSTOM_ASSETS.xirinBgUrl;
+
+    const customPoolBgImg = new Image();
+    if (CUSTOM_ASSETS.poolBgUrl) customPoolBgImg.src = CUSTOM_ASSETS.poolBgUrl;
 
     /* ==========================================================================
        4. DIBUJO PROCEDURAL EN CANVAS (PIXEL ART Y RENDER)
@@ -1371,6 +1377,7 @@
     }
 
     let xirinTransitionProgress = 0;
+    let poolTransitionProgress = 0;
 
     // Dibujar Escenario
     function drawEnvironment() {
@@ -1423,10 +1430,20 @@
         usingCustomBg = true;
       }
 
+      // Transición a Piscina (sobrescribe Xirin)
+      if (poolTransitionProgress > 0 && CUSTOM_ASSETS.poolBgUrl && customPoolBgImg.complete && customPoolBgImg.naturalWidth !== 0) {
+        ctx.globalAlpha = poolTransitionProgress;
+        ctx.drawImage(customPoolBgImg, 0, 0, VIRTUAL_WIDTH, GROUND_Y);
+        ctx.globalAlpha = 1.0;
+        usingCustomBg = true;
+      }
+
       // Capa oscura al 70% para contraste perfecto sobre las fotos
       if (usingCustomBg) {
-        if (!baseCustomBg && xirinTransitionProgress > 0) {
-          ctx.fillStyle = `rgba(15, 23, 42, ${0.70 * xirinTransitionProgress})`;
+        // La intensidad de la oscuridad empieza a subir si no hay un fondo original
+        if (!baseCustomBg && (xirinTransitionProgress > 0 || poolTransitionProgress > 0)) {
+          const maxTransition = Math.max(xirinTransitionProgress, poolTransitionProgress);
+          ctx.fillStyle = `rgba(15, 23, 42, ${0.70 * maxTransition})`;
         } else {
           ctx.fillStyle = 'rgba(15, 23, 42, 0.70)';
         }
@@ -1539,6 +1556,7 @@
       jesusBuffCharges = 0;
       jesusCooldownTimer = 0;
       xirinTransitionProgress = 0;
+      poolTransitionProgress = 0;
 
       boar.y = GROUND_Y - boar.height;
       boar.vy = 0;
@@ -1723,10 +1741,16 @@
         // Actualizar HUD
         hudScore.textContent = String(score).padStart(5, '0');
 
-        // Transición de fondo Xirin
+        // Transición de fondo Xirin (1000 puntos)
         if (score >= 1000 && xirinTransitionProgress < 1) {
           xirinTransitionProgress += deltaSec * 0.5; // Tarda 2 segundos en hacer fade completo
           if (xirinTransitionProgress > 1) xirinTransitionProgress = 1;
+        }
+
+        // Transición de fondo Piscina (2000 puntos)
+        if (score >= 2000 && poolTransitionProgress < 1) {
+          poolTransitionProgress += deltaSec * 0.5; // Tarda 2 segundos
+          if (poolTransitionProgress > 1) poolTransitionProgress = 1;
         }
 
         // Física del Jabalí corregida por Delta-Time
