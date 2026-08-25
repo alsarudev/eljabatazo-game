@@ -1711,16 +1711,19 @@
 
       // También sincronizar desde el ranking local
       const localScores = getLocalLeaderboard();
-      localScores.forEach(entry => {
-        if (entry.nombre) {
-          const norm = formatPlayerName(entry.nombre);
-          userRecordsMap[norm] = Math.max(userRecordsMap[norm] || 0, entry.score || 0);
-        }
-      });
-
+      
       // Depurar la caché local para dejar ÚNICAMENTE un registro por usuario (el máximo)
       const cleanedLocal = consolidateLeaderboard(localScores);
       localStorage.setItem('jabatazo_local_leaderboard', JSON.stringify(cleanedLocal));
+
+      // Reconstruir mapa de récords auténticos desde la lista consolidada
+      cleanedLocal.forEach(entry => {
+        if (entry && entry.nombre) {
+          const norm = formatPlayerName(entry.nombre);
+          userRecordsMap[norm] = Number(entry.score) || 0;
+        }
+      });
+      localStorage.setItem('jabatazo_user_records', JSON.stringify(userRecordsMap));
 
       // Migración automática transparente para usuarios existentes (Legacy Users)
       const savedPlayer = localStorage.getItem('jabatazo_player_name');
@@ -1926,24 +1929,36 @@
           try {
             database.ref('leaderboard').on('value', (snapshot) => {
               const fbList = [];
+              const freshRecordsMap = {};
               if (snapshot && snapshot.exists()) {
                 snapshot.forEach((childSnap) => {
                   const val = childSnap.val();
                   if (val && val.nombre && val.score !== undefined) {
-                    fbList.push(val);
-                    userRecordsMap[val.nombre] = Math.max(userRecordsMap[val.nombre] || 0, Number(val.score) || 0);
+                    const normName = formatPlayerName(val.nombre);
+                    const scoreVal = Number(val.score) || 0;
+                    fbList.push({ nombre: normName, score: scoreVal, fecha: val.fecha || Date.now() });
+                    freshRecordsMap[normName] = Math.max(freshRecordsMap[normName] || 0, scoreVal);
                   }
                 });
               }
 
+              // Sustituir mapa local por los registros reales de Firebase (elimina fantasmas borrados)
+              userRecordsMap = freshRecordsMap;
               localStorage.setItem('jabatazo_user_records', JSON.stringify(userRecordsMap));
+              
               if (fbList.length > 0) {
-                localStorage.setItem('jabatazo_local_leaderboard', JSON.stringify(fbList));
-                renderLeaderboardTable(fbList);
+                const cleanedList = consolidateLeaderboard(fbList);
+                localStorage.setItem('jabatazo_local_leaderboard', JSON.stringify(cleanedList));
+                renderLeaderboardTable(cleanedList);
               } else {
-                renderLeaderboardTable(getLocalLeaderboard());
+                localStorage.setItem('jabatazo_local_leaderboard', '[]');
+                renderLeaderboardTable([]);
               }
-              updateUserSelectorDropdown();
+
+              // Actualizar récord del jugador activo en la interfaz
+              if (playerName) {
+                updateSelectedUser(playerName);
+              }
             }, (err) => {
               console.warn("Fallo lectura en vivo Firebase:", err);
               renderLeaderboardTable(getLocalLeaderboard());
