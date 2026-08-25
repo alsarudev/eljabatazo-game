@@ -881,6 +881,9 @@
 
       // 8. Imagen de Fondo / Escenario (fondo_encinar.webp)
       backgroundUrl: 'fondo_encinar.webp',
+      
+      // 8b. Imagen de Fondo a partir de 600 puntos
+      xirinBgUrl: 'xirin.webp',
 
       // 9. Música de fondo
       musicUrl: 'jabatazo-hit.mp3'
@@ -913,6 +916,9 @@
 
     const customBgImg = new Image();
     if (CUSTOM_ASSETS.backgroundUrl) customBgImg.src = CUSTOM_ASSETS.backgroundUrl;
+
+    const customXirinBgImg = new Image();
+    if (CUSTOM_ASSETS.xirinBgUrl) customXirinBgImg.src = CUSTOM_ASSETS.xirinBgUrl;
 
     /* ==========================================================================
        4. DIBUJO PROCEDURAL EN CANVAS (PIXEL ART Y RENDER)
@@ -1364,18 +1370,18 @@
       ctx.restore();
     }
 
-    let bgScrollX = 0;
+    let xirinTransitionProgress = 0;
 
     // Dibujar Escenario
     function drawEnvironment() {
       // 1. Si se ha especificado la imagen de fondo personalizada (fondo_encinar.webp)
+      let usingCustomBg = false;
+      let baseCustomBg = false;
       if (CUSTOM_ASSETS.backgroundUrl && customBgImg.complete && customBgImg.naturalWidth !== 0) {
-        // Imagen de Fondo Estática
+        // Imagen de Fondo Estática base
         ctx.drawImage(customBgImg, 0, 0, VIRTUAL_WIDTH, GROUND_Y);
-
-        // Capa oscura al 70% para contraste perfecto
-        ctx.fillStyle = 'rgba(15, 23, 42, 0.70)';
-        ctx.fillRect(0, 0, VIRTUAL_WIDTH, GROUND_Y);
+        usingCustomBg = true;
+        baseCustomBg = true;
       } else {
         // Cielo y montañas por defecto
         const skyGradient = ctx.createLinearGradient(0, 0, 0, GROUND_Y);
@@ -1407,6 +1413,24 @@
             if (m.x + m.width < 0) m.x = VIRTUAL_WIDTH;
           }
         });
+      }
+
+      // Transición a Xirin
+      if (xirinTransitionProgress > 0 && CUSTOM_ASSETS.xirinBgUrl && customXirinBgImg.complete && customXirinBgImg.naturalWidth !== 0) {
+        ctx.globalAlpha = xirinTransitionProgress;
+        ctx.drawImage(customXirinBgImg, 0, 0, VIRTUAL_WIDTH, GROUND_Y);
+        ctx.globalAlpha = 1.0;
+        usingCustomBg = true;
+      }
+
+      // Capa oscura al 70% para contraste perfecto sobre las fotos
+      if (usingCustomBg) {
+        if (!baseCustomBg && xirinTransitionProgress > 0) {
+          ctx.fillStyle = `rgba(15, 23, 42, ${0.70 * xirinTransitionProgress})`;
+        } else {
+          ctx.fillStyle = 'rgba(15, 23, 42, 0.70)';
+        }
+        ctx.fillRect(0, 0, VIRTUAL_WIDTH, GROUND_Y);
       }
 
       // 4. Luces y Guirnaldas de Fiesta Peñista 🎈
@@ -1514,6 +1538,7 @@
       jesusBuffTimer = 0;
       jesusBuffCharges = 0;
       jesusCooldownTimer = 0;
+      xirinTransitionProgress = 0;
 
       boar.y = GROUND_Y - boar.height;
       boar.vy = 0;
@@ -1697,6 +1722,12 @@
 
         // Actualizar HUD
         hudScore.textContent = String(score).padStart(5, '0');
+
+        // Transición de fondo Xirin
+        if (score >= 1000 && xirinTransitionProgress < 1) {
+          xirinTransitionProgress += deltaSec * 0.5; // Tarda 2 segundos en hacer fade completo
+          if (xirinTransitionProgress > 1) xirinTransitionProgress = 1;
+        }
 
         // Física del Jabalí corregida por Delta-Time
         boar.vy += boar.gravity * dt;
