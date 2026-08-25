@@ -267,8 +267,16 @@
             </div>
           </div>
 
-          <div class="mt-2 text-[10px] text-slate-400 text-center shrink-0">
-            Móvil: Toca pantalla | PC: Espacio
+          <div class="mt-2 text-[10px] text-slate-400 text-center shrink-0 flex items-center justify-between px-1">
+            <span>Móvil: Toca pantalla | PC: Espacio</span>
+            <button 
+              type="button" 
+              id="btn-clear-localstorage" 
+              class="text-red-400/80 hover:text-red-300 underline font-semibold text-[10px] cursor-pointer transition"
+              title="Borrar datos de pruebas locales"
+            >
+              🧹 Limpiar Caché Local
+            </button>
           </div>
         </div>
       </div>
@@ -1927,6 +1935,20 @@
         if (!isFirebaseListenerAttached) {
           isFirebaseListenerAttached = true;
           try {
+            // Sincronizar PINs registrados en tiempo real desde Firebase
+            database.ref('user_pins').on('value', (pinSnap) => {
+              if (pinSnap && pinSnap.exists()) {
+                const rawPins = pinSnap.val() || {};
+                const freshPinsMap = {};
+                Object.keys(rawPins).forEach(key => {
+                  const normKey = formatPlayerName(key);
+                  freshPinsMap[normKey] = String(rawPins[key]).trim();
+                });
+                userPinsMap = freshPinsMap;
+                localStorage.setItem('jabatazo_user_pins', JSON.stringify(userPinsMap));
+              }
+            });
+
             database.ref('leaderboard').on('value', (snapshot) => {
               const fbList = [];
               const freshRecordsMap = {};
@@ -2063,9 +2085,11 @@
         try { userPins = JSON.parse(localStorage.getItem('jabatazo_user_pins') || '{}'); } catch(e){}
 
         const existingRecord = userRecordsMap[targetName];
+        const registeredPin = userPinsMap[targetName] || userPins[targetName];
 
-        // Si el apodo ya existe en la nube/tabla global y el PIN no coincide
-        if (existingRecord !== undefined && userPins[targetName] && userPins[targetName] !== enteredPin) {
+        // REGLA DE SEGURIDAD ESTRICTA:
+        // Si el apodo ya existe en Firebase o tiene un PIN registrado, el PIN debe coincidir EXACTAMENTE
+        if ((existingRecord !== undefined || registeredPin !== undefined) && registeredPin && registeredPin !== enteredPin) {
           if (pinEl) {
             pinEl.classList.add('border-red-500', 'ring-2', 'ring-red-500/80', 'bg-red-950/40');
           }
@@ -2078,7 +2102,8 @@
 
         // Registrar o actualizar vinculación de PIN y Token de Dispositivo
         userPins[targetName] = enteredPin;
-        localStorage.setItem('jabatazo_user_pins', JSON.stringify(userPins));
+        userPinsMap[targetName] = enteredPin;
+        localStorage.setItem('jabatazo_user_pins', JSON.stringify(userPinsMap));
 
         const deviceToken = getOrCreateDeviceToken(targetName);
         userTokensMap[targetName] = deviceToken;
@@ -2149,33 +2174,16 @@
         
         const rawTarget = inputVal || savedPlayer || (Object.keys(userRecordsMap)[0] || 'JabalíPeñista');
         activeResetTargetName = formatPlayerName(rawTarget);
-        const normSavedPlayer = formatPlayerName(savedPlayer);
 
         // REGLA DE SEGURIDAD ESTRICTA:
-        // Solamente el dispositivo móvil que posea la clave secreta local de este apodo puede restablecer el PIN
+        // Solamente el dispositivo que posea el token de dispositivo local generado al ingresar con el PIN correcto puede restablecer el PIN.
         const localDeviceToken = localStorage.getItem('jabatazo_device_token_' + activeResetTargetName);
-        let currentTokens = {};
-        try { currentTokens = JSON.parse(localStorage.getItem('jabatazo_user_tokens') || '{}'); } catch(e){}
-        const cloudToken = currentTokens[activeResetTargetName];
-        let isOwnerDevice = Boolean(localDeviceToken) && (!cloudToken || localDeviceToken === cloudToken);
-
-        // Migración transparente para cuentas antiguas (Legacy): Si el usuario ya jugaba en este móvil pero no tenía token guardado
-        if (!isOwnerDevice && !cloudToken && (normSavedPlayer === activeResetTargetName || userRecordsMap[activeResetTargetName] !== undefined)) {
-          const newToken = getOrCreateDeviceToken(activeResetTargetName);
-          userTokensMap[activeResetTargetName] = newToken;
-          localStorage.setItem('jabatazo_user_tokens', JSON.stringify(userTokensMap));
-          try {
-            if (typeof isFirebaseActive !== 'undefined' && isFirebaseActive && typeof database !== 'undefined' && database) {
-              database.ref('user_tokens/' + activeResetTargetName).set(newToken);
-            }
-          } catch(e){}
-          isOwnerDevice = true;
-        }
+        const isOwnerDevice = Boolean(localDeviceToken);
 
         if (!isOwnerDevice) {
           showCustomNotice(
-            "DISPOSITIVO NO RECONOCIDO",
-            `El apodo <strong class="text-amber-400 font-bold">${escapeHtml(activeResetTargetName)}</strong> está registrado en otro dispositivo.<br/><br/>Por tu seguridad, para restablecer su PIN debes hacerlo desde el móvil o navegador habitual donde creaste el perfil.`,
+            "DISPOSITIVO NO AUTORIZADO",
+            `El apodo <strong class="text-amber-400 font-bold">${escapeHtml(activeResetTargetName)}</strong> está protegido por PIN.<br/><br/>No puedes restablecer el PIN desde un dispositivo nuevo o navegador no autenticado.<br/><br/>Para jugar con este apodo en este dispositivo, debes introducir su PIN secreto de 4 dígitos original.`,
             "🔐",
             "ENTENDIDO"
           );
@@ -2319,6 +2327,22 @@
       }
 
       if (confirmModal) confirmModal.classList.remove('hidden');
+    }
+
+    // Botón de Desarrollo: Limpiar Caché Local de Pruebas
+    const btnClearLocal = document.getElementById('btn-clear-localstorage');
+    if (btnClearLocal) {
+      btnClearLocal.addEventListener('click', () => {
+        showCustomConfirm(
+          "LIMPIAR CACHÉ LOCAL",
+          "¿Quieres borrar toda la caché local de este navegador para hacer pruebas desde cero?",
+          "🧹",
+          () => {
+            localStorage.clear();
+            location.reload();
+          }
+        );
+      });
     }
 
     // Botón Reintentar
