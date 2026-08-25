@@ -173,53 +173,66 @@
           <!-- Input Form & Selector de Jugadores -->
           <form id="form-welcome" class="space-y-3 text-left my-3 shrink-0">
             
-            <!-- Botón Destacado: Crear Nuevo Jugador / Seleccionar Existente -->
-            <div class="flex items-center justify-between gap-2">
-              <span id="welcome-mode-title" class="text-xs font-bold uppercase tracking-wider text-amber-400">
-                👤 Selecciona tu Jugador:
-              </span>
+            <!-- 1. Tarjeta de Jugador Activo Guardado en este Móvil -->
+            <div id="container-user-active" class="bg-slate-900/90 rounded-xl p-3 border-2 border-amber-500/60 flex items-center justify-between">
+              <div>
+                <div class="text-[10px] uppercase font-bold text-amber-400">👤 Jugador Activo en este móvil:</div>
+                <div id="active-player-display" class="text-base font-black text-white">JabalíPeñista</div>
+                <div id="active-score-display" class="text-xs font-semibold text-slate-300">Récord: 00000</div>
+              </div>
               <button 
                 type="button" 
-                id="btn-toggle-new-user" 
-                class="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 font-bold text-xs transition flex items-center gap-1 cursor-pointer shadow-sm"
+                id="btn-switch-user" 
+                class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-300 font-bold text-xs transition flex items-center gap-1 cursor-pointer shadow"
               >
-                <span>➕</span> <span>Crear Nuevo</span>
-              </button>
-              <button 
-                type="button" 
-                id="btn-toggle-select-user" 
-                class="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 font-bold text-xs transition flex items-center gap-1 hidden cursor-pointer shadow-sm"
-              >
-                <span>👤</span> <span>Elegir Existente</span>
+                <span>🔄</span> <span>Cambiar</span>
               </button>
             </div>
 
-            <!-- 1. Selector de Jugadores Existentes -->
-            <div id="container-user-select" class="hidden">
-              <select 
-                id="player-select" 
-                class="w-full px-3 py-2.5 rounded-xl bg-slate-900/90 border-2 border-amber-500/50 text-white font-bold focus:outline-none focus:border-amber-400 transition text-sm cursor-pointer"
-              >
-                <!-- Carga dinámica de jugadores -->
-              </select>
-            </div>
+            <!-- 2. Formulario para Nuevo Jugador o Vincular con PIN -->
+            <div id="container-user-input" class="space-y-2 hidden">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold uppercase tracking-wider text-amber-400">✍️ Nombre y PIN Secreto:</span>
+                <button 
+                  type="button" 
+                  id="btn-cancel-switch" 
+                  class="text-[11px] text-slate-400 hover:text-white underline cursor-pointer hidden"
+                >
+                  ⬅️ Volver
+                </button>
+              </div>
 
-            <!-- 2. Campo Escribir Nuevo Nombre -->
-            <div id="container-user-input">
               <input 
                 type="text" 
                 id="player-name-input" 
                 maxlength="15" 
-                placeholder="Escribe tu apodo aquí..." 
+                placeholder="Escribe tu apodo (ej: Fonsi)..." 
                 class="w-full px-3 py-2.5 rounded-xl bg-slate-900/90 border-2 border-slate-700 text-white font-bold placeholder-slate-500 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/30 transition text-sm"
               />
-            </div>
-
-            <!-- Botón Borrar Historial de Jugadores (Siempre visible) -->
-            <div class="text-right">
-              <button type="button" id="btn-clear-user-history" class="text-[10px] text-red-400/90 hover:text-red-300 underline lowercase cursor-pointer">
-                🗑️ Borrar usuarios guardados
-              </button>
+              <div class="relative">
+                <input 
+                  type="password" 
+                  id="player-pin-input" 
+                  maxlength="4" 
+                  pattern="[0-9]*" 
+                  inputmode="numeric" 
+                  placeholder="PIN secreto obligatorio (4 dígitos ej: 1234)" 
+                  class="w-full px-3 py-2.5 rounded-xl bg-slate-900/90 border-2 border-slate-700 text-amber-400 font-bold tracking-widest placeholder-slate-500 text-xs focus:outline-none focus:border-amber-400 transition"
+                />
+              </div>
+              <div id="pin-error-msg" class="text-[11px] text-red-400 font-bold hidden flex items-center gap-1 animate-bounce">
+                <span>⚠️</span> <span>El PIN de 4 dígitos es OBLIGATORIO para jugar.</span>
+              </div>
+              <div class="flex items-center justify-between text-[10px] pt-0.5">
+                <span class="text-slate-400 italic">* Tu PIN protege tu apodo.</span>
+                <button 
+                  type="button" 
+                  id="btn-forgot-pin" 
+                  class="text-amber-400 hover:text-amber-300 underline font-bold cursor-pointer transition"
+                >
+                  🔑 ¿Olvidaste tu PIN?
+                </button>
+              </div>
             </div>
 
             <button 
@@ -254,8 +267,151 @@
             </div>
           </div>
 
-          <div class="mt-2 text-[10px] text-slate-400 text-center shrink-0">
-            Móvil: Toca pantalla | PC: Espacio
+          <div class="mt-2 text-[10px] text-slate-400 text-center shrink-0 flex items-center justify-between px-1">
+            <span>Móvil: Toca pantalla | PC: Espacio</span>
+            <button 
+              type="button" 
+              id="btn-clear-localstorage" 
+              class="text-red-400/80 hover:text-red-300 underline font-semibold text-[10px] cursor-pointer transition"
+              title="Borrar datos de pruebas locales"
+            >
+              🧹 Limpiar Caché Local
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- MODAL RESTABLECER PIN OLVIDADO (DISEÑO PREMIUM GLASSMORPHISM) -->
+      <div id="modal-forgot-pin" class="absolute inset-0 flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md z-50 hidden">
+        <div class="glass-card max-w-sm w-full rounded-3xl p-6 text-center shadow-2xl border-2 border-amber-500/80 animate-in fade-in zoom-in duration-200">
+          <div class="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-500/50 flex items-center justify-center mx-auto mb-3 shadow-[0_0_15px_rgba(245,158,11,0.3)]">
+            <span class="text-2xl">🔑</span>
+          </div>
+          <h3 class="text-lg font-black text-white font-arcade uppercase tracking-wider mb-1">Restablecer PIN</h3>
+          <p class="text-xs text-slate-300 mb-4">
+            Dispositivo de origen verificado para <strong id="forgot-pin-target-name" class="text-amber-400 font-bold">Jugador</strong>.
+          </p>
+
+          <form id="form-reset-pin" class="space-y-3">
+            <div class="text-left space-y-1">
+              <label class="text-[11px] font-bold text-slate-300 uppercase tracking-wide">Nuevo PIN (4 dígitos):</label>
+              <input 
+                type="password" 
+                id="reset-pin-input" 
+                maxlength="4" 
+                pattern="[0-9]*" 
+                inputmode="numeric" 
+                placeholder="Ej: 1234" 
+                class="w-full px-3 py-2.5 rounded-xl bg-slate-900/90 border-2 border-amber-500/60 text-amber-400 font-bold tracking-widest text-center text-lg placeholder-slate-600 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/40 transition"
+              />
+            </div>
+
+            <div id="reset-pin-error" class="text-[11px] text-red-400 font-bold hidden">
+              ⚠️ Introduce exactamente 4 dígitos numéricos.
+            </div>
+
+            <button 
+              type="submit" 
+              class="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 hover:from-amber-400 hover:to-red-400 text-slate-950 font-black text-sm uppercase tracking-wider font-arcade shadow-lg transition cursor-pointer flex items-center justify-center gap-2"
+            >
+              <span>✨ GUARDAR PIN Y JUGAR</span>
+              <span>💨</span>
+            </button>
+
+            <button 
+              type="button" 
+              id="btn-close-reset-pin" 
+              class="text-xs text-slate-400 hover:text-slate-200 underline pt-1 cursor-pointer block w-full text-center"
+            >
+              Cancelar
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <!-- MODAL PIN INCORRECTO / ACCESO DENEGADO (DISEÑO RETRO-ARCADE GLASSMORPHISM) -->
+      <div id="modal-invalid-pin" class="absolute inset-0 flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md z-50 hidden">
+        <div class="glass-card max-w-sm w-full rounded-3xl p-6 text-center shadow-2xl border-2 border-red-500/80 animate-in fade-in zoom-in duration-200">
+          <div class="w-14 h-14 rounded-2xl bg-red-500/20 border border-red-500/50 flex items-center justify-center mx-auto mb-3 shadow-[0_0_20px_rgba(239,68,68,0.4)]">
+            <span class="text-3xl">🔐</span>
+          </div>
+          <h3 class="text-xl font-black text-red-400 font-arcade uppercase tracking-wider mb-1">¡ACCESO DENEGADO!</h3>
+          <div class="text-xs font-bold text-slate-300 mb-2 uppercase tracking-wide">PIN Incorrecto</div>
+          
+          <p class="text-xs text-slate-300 leading-relaxed mb-5 bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+            El apodo <strong id="invalid-pin-target-name" class="text-amber-400 font-bold">Jugador</strong> está protegido.<br/>
+            El PIN secreto de 4 dígitos introducido no coincide.
+          </p>
+
+          <div class="space-y-2">
+            <button 
+              type="button" 
+              id="btn-retry-pin"
+              class="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-red-600 via-rose-600 to-amber-600 hover:from-red-500 hover:to-amber-500 text-white font-black text-sm uppercase tracking-wider font-arcade shadow-lg transition cursor-pointer flex items-center justify-center gap-2"
+            >
+              <span>🔑 REINTENTAR PIN</span>
+            </button>
+
+            <button 
+              type="button" 
+              id="btn-trigger-forgot-from-invalid" 
+              class="w-full py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 border border-amber-500/40 text-amber-300 font-bold text-xs transition cursor-pointer flex items-center justify-center gap-1.5"
+            >
+              <span>❓ ¿Olvidaste tu PIN?</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- MODAL NOTIFICACIÓN / ALERTA CUSTOM (DISEÑO RETRO-ARCADE GLASSMORPHISM) -->
+      <div id="modal-notice" class="absolute inset-0 flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md z-50 hidden">
+        <div class="glass-card max-w-sm w-full rounded-3xl p-6 text-center shadow-2xl border-2 border-amber-500/80 animate-in fade-in zoom-in duration-200">
+          <div class="w-14 h-14 rounded-2xl bg-amber-500/20 border border-amber-500/50 flex items-center justify-center mx-auto mb-3 shadow-[0_0_20px_rgba(245,158,11,0.4)]">
+            <span id="notice-icon" class="text-3xl">📱</span>
+          </div>
+          <h3 id="notice-title" class="text-lg font-black text-amber-400 font-arcade uppercase tracking-wider mb-2">Aviso del Juego</h3>
+          
+          <div id="notice-msg" class="text-xs text-slate-300 leading-relaxed mb-5 bg-slate-900/80 p-3 rounded-xl border border-slate-800 text-left space-y-1">
+            Mensaje de aviso...
+          </div>
+
+          <button 
+            type="button" 
+            id="btn-notice-close"
+            class="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 hover:from-amber-400 hover:to-red-400 text-slate-950 font-black text-sm uppercase tracking-wider font-arcade shadow-lg transition cursor-pointer flex items-center justify-center gap-2"
+          >
+            <span>ENTENDIDO</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- MODAL CONFIRMACIÓN CUSTOM (DISEÑO RETRO-ARCADE GLASSMORPHISM) -->
+      <div id="modal-confirm" class="absolute inset-0 flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md z-50 hidden">
+        <div class="glass-card max-w-sm w-full rounded-3xl p-6 text-center shadow-2xl border-2 border-red-500/80 animate-in fade-in zoom-in duration-200">
+          <div class="w-14 h-14 rounded-2xl bg-red-500/20 border border-red-500/50 flex items-center justify-center mx-auto mb-3 shadow-[0_0_20px_rgba(239,68,68,0.4)]">
+            <span id="confirm-icon" class="text-3xl">🧹</span>
+          </div>
+          <h3 id="confirm-title" class="text-lg font-black text-red-400 font-arcade uppercase tracking-wider mb-2">¿Confirmar Acción?</h3>
+          
+          <div id="confirm-msg" class="text-xs text-slate-300 leading-relaxed mb-5 bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+            ¿Estás seguro de continuar?
+          </div>
+
+          <div class="space-y-2">
+            <button 
+              type="button" 
+              id="btn-confirm-yes"
+              class="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-red-600 via-rose-600 to-amber-600 hover:from-red-500 hover:to-amber-500 text-white font-black text-sm uppercase tracking-wider font-arcade shadow-lg transition cursor-pointer flex items-center justify-center gap-2"
+            >
+              <span>ACEPTAR</span>
+            </button>
+            <button 
+              type="button" 
+              id="btn-confirm-no"
+              class="w-full py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 font-bold text-xs transition cursor-pointer"
+            >
+              Cancelar
+            </button>
           </div>
         </div>
       </div>
@@ -1515,6 +1671,18 @@
     const btnToggleSelectUser = document.getElementById('btn-toggle-select-user');
 
     let userRecordsMap = {};
+    let userPinsMap = {};
+
+    // Normalización de apodos (Capitalize / Title Case: "tEsT" -> "Test", "FONSI" -> "Fonsi")
+    function formatPlayerName(str) {
+      if (!str) return 'JabalíPeñista';
+      const clean = String(str).trim();
+      if (!clean) return 'JabalíPeñista';
+      return clean.split(/\s+/).map(word => {
+        if (!word) return '';
+        return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+      }).filter(Boolean).join(' ');
+    }
 
     function loadUserDatabase() {
       try {
@@ -1523,107 +1691,99 @@
         userRecordsMap = {};
       }
 
+      try {
+        userPinsMap = JSON.parse(localStorage.getItem('jabatazo_user_pins') || '{}');
+      } catch(e) {
+        userPinsMap = {};
+      }
+
       // También sincronizar desde el ranking local
       const localScores = getLocalLeaderboard();
       localScores.forEach(entry => {
         if (entry.nombre) {
-          userRecordsMap[entry.nombre] = Math.max(userRecordsMap[entry.nombre] || 0, entry.score || 0);
+          const norm = formatPlayerName(entry.nombre);
+          userRecordsMap[norm] = Math.max(userRecordsMap[norm] || 0, entry.score || 0);
         }
       });
 
+      // Depurar la caché local para dejar ÚNICAMENTE un registro por usuario (el máximo)
+      const cleanedLocal = consolidateLeaderboard(localScores);
+      localStorage.setItem('jabatazo_local_leaderboard', JSON.stringify(cleanedLocal));
+
       refreshUserUI();
-      fetchLeaderboard(); // Cargar la tabla de clasificación de inmediato en la portada al iniciar la página
+      fetchLeaderboard(); // Cargar la tabla de clasificación de inmediato en la portada
     }
 
-    const welcomeModeTitle = document.getElementById('welcome-mode-title');
-    const btnClearUserHistory = document.getElementById('btn-clear-user-history');
-
     function refreshUserUI() {
-      const userNames = Object.keys(userRecordsMap);
+      const savedPlayer = localStorage.getItem('jabatazo_player_name');
       
-      if (userNames.length > 0) {
-        playerSelect.innerHTML = userNames.map(name => {
-          const rec = userRecordsMap[name] || 0;
-          return `<option value="${escapeHtml(name)}">${escapeHtml(name)} (Récord: ${rec})</option>`;
-        }).join('');
-
+      // Si el usuario ya está guardado localmente en este móvil, cargar su tarjeta directo
+      if (savedPlayer) {
+        updateSelectedUser(savedPlayer);
         showSelectMode();
-
-        // Seleccionar usuario previo si existía
-        const savedPlayer = localStorage.getItem('jabatazo_player_name');
-        if (savedPlayer && userRecordsMap[savedPlayer] !== undefined) {
-          playerSelect.value = savedPlayer;
-          updateSelectedUser(savedPlayer);
-        } else {
-          updateSelectedUser(userNames[0]);
-        }
       } else {
+        // Primera vez o Caché Borrada -> Mostrar directamente formulario de Nuevo Jugador / Vincular con PIN
         showInputMode();
-        if (btnToggleSelectUser) btnToggleSelectUser.classList.add('hidden');
       }
     }
 
     function showSelectMode() {
-      if (containerUserSelect) containerUserSelect.classList.remove('hidden');
-      if (containerUserInput) containerUserInput.classList.add('hidden');
-      if (btnToggleNewUser) btnToggleNewUser.classList.remove('hidden');
-      if (btnToggleSelectUser) btnToggleSelectUser.classList.add('hidden');
-      if (welcomeModeTitle) welcomeModeTitle.textContent = '👤 Selecciona tu Jugador:';
+      const containerActive = document.getElementById('container-user-active');
+      const containerInp = document.getElementById('container-user-input');
+
+      if (containerActive) containerActive.classList.remove('hidden');
+      if (containerInp) containerInp.classList.add('hidden');
     }
 
     function showInputMode() {
-      if (containerUserSelect) containerUserSelect.classList.add('hidden');
-      if (containerUserInput) containerUserInput.classList.remove('hidden');
-      if (btnToggleNewUser) btnToggleNewUser.classList.add('hidden');
-      if (Object.keys(userRecordsMap).length > 0 && btnToggleSelectUser) {
-        btnToggleSelectUser.classList.remove('hidden');
+      const containerActive = document.getElementById('container-user-active');
+      const containerInp = document.getElementById('container-user-input');
+      const btnCancel = document.getElementById('btn-cancel-switch');
+
+      if (containerActive) containerActive.classList.add('hidden');
+      if (containerInp) containerInp.classList.remove('hidden');
+
+      const savedPlayer = localStorage.getItem('jabatazo_player_name');
+      if (savedPlayer && btnCancel) {
+        btnCancel.classList.remove('hidden');
+      } else if (btnCancel) {
+        btnCancel.classList.add('hidden');
       }
-      if (welcomeModeTitle) welcomeModeTitle.textContent = '✍️ Nuevo Jugador:';
     }
 
     function updateSelectedUser(name) {
       if (!name) return;
-      playerName = name;
-      highScore = userRecordsMap[name] || 0;
+      playerName = formatPlayerName(name);
+      highScore = userRecordsMap[playerName] !== undefined ? Number(userRecordsMap[playerName]) : 0;
+
       localStorage.setItem('jabatazo_player_name', playerName);
       localStorage.setItem('jabatazo_high_score', highScore);
-      if (hudHighScore) hudHighScore.textContent = `RÉCORD: ${String(highScore).padStart(5, '0')}`;
+
+      const activeNameEl = document.getElementById('active-player-display');
+      const activeScoreEl = document.getElementById('active-score-display');
+      const hudHighEl = document.getElementById('hud-high-score');
+
+      if (activeNameEl) activeNameEl.textContent = playerName;
+      if (activeScoreEl) activeScoreEl.textContent = `Récord: ${String(highScore).padStart(5, '0')}`;
+      if (hudHighEl) hudHighEl.textContent = `RÉCORD: ${String(highScore).padStart(5, '0')}`;
     }
 
-    if (playerSelect) {
-      playerSelect.addEventListener('change', (e) => {
-        updateSelectedUser(e.target.value);
-      });
-    }
-
-    if (btnToggleNewUser) {
-      btnToggleNewUser.addEventListener('click', () => {
+    const btnSwitchUser = document.getElementById('btn-switch-user');
+    if (btnSwitchUser) {
+      btnSwitchUser.addEventListener('click', () => {
         showInputMode();
-        playerNameInput.value = '';
-        playerNameInput.focus();
-      });
-    }
-
-    if (btnToggleSelectUser) {
-      btnToggleSelectUser.addEventListener('click', () => {
-        showSelectMode();
-      });
-    }
-
-    if (btnClearUserHistory) {
-      btnClearUserHistory.addEventListener('click', () => {
-        if (confirm("¿Quieres borrar la lista de usuarios y récords locales guardados en este dispositivo?")) {
-          localStorage.removeItem('jabatazo_user_records');
-          localStorage.removeItem('jabatazo_local_leaderboard');
-          localStorage.removeItem('jabatazo_player_name');
-          localStorage.removeItem('jabatazo_high_score');
-          userRecordsMap = {};
-          playerName = '';
-          highScore = 0;
-          if (hudHighScore) hudHighScore.textContent = 'RÉCORD: 00000';
-          refreshUserUI();
-          fetchLeaderboard();
+        const inpName = document.getElementById('player-name-input');
+        if (inpName) {
+          inpName.value = '';
+          inpName.focus();
         }
+      });
+    }
+
+    const btnCancelSwitch = document.getElementById('btn-cancel-switch');
+    if (btnCancelSwitch) {
+      btnCancelSwitch.addEventListener('click', () => {
+        showSelectMode();
       });
     }
 
@@ -1634,38 +1794,63 @@
     function saveScoreToLeaderboard(name, scoreVal) {
       if (!name || scoreVal <= 0) return;
 
-      // Actualizar mapa de récords por usuario
-      userRecordsMap[name] = Math.max(userRecordsMap[name] || 0, scoreVal);
-      localStorage.setItem('jabatazo_user_records', JSON.stringify(userRecordsMap));
+      const cleanName = formatPlayerName(name);
+      const scoreNum = Number(scoreVal);
+      const currentBest = userRecordsMap[cleanName] !== undefined ? Number(userRecordsMap[cleanName]) : 0;
 
-      const newEntry = {
-        nombre: name || 'JabalíAnónimo',
-        score: Number(scoreVal),
-        fecha: Date.now()
-      };
+      // Guardar si es el primer récord del jugador (currentBest === 0) O si supera su récord anterior
+      if (currentBest === 0 || scoreNum > currentBest) {
+        const finalBest = Math.max(currentBest, scoreNum);
+        userRecordsMap[cleanName] = finalBest;
+        localStorage.setItem('jabatazo_user_records', JSON.stringify(userRecordsMap));
 
-      if (isFirebaseActive && database) {
-        try {
-          database.ref('leaderboard').push(newEntry);
-          console.log("🏆 Puntuación guardada en Firebase Realtime Database.");
-        } catch (err) {
-          console.warn("Error guardando en Firebase, usando backup local:", err);
-          saveScoreLocal(newEntry);
+        const newEntry = {
+          nombre: cleanName,
+          score: finalBest,
+          fecha: Date.now()
+        };
+
+        // 1. Guardar en caché local
+        saveScoreLocal(newEntry);
+
+        // 2. Guardar en Firebase (leaderboard/{nombre})
+        if (typeof isFirebaseActive !== 'undefined' && isFirebaseActive && typeof database !== 'undefined' && database) {
+          try {
+            const safeKey = cleanName.replace(/[.#$/[\]]/g, '_');
+            database.ref('leaderboard/' + safeKey).set(newEntry);
+            console.log(`🏆 Récord de ${cleanName} (${finalBest} pts) guardado en Firebase.`);
+          } catch (err) {
+            console.warn("Error guardando récord en Firebase:", err);
+          }
         }
       } else {
-        saveScoreLocal(newEntry);
+        console.log(`ℹ️ La puntuación (${scoreNum}) no supera el récord previo de ${cleanName} (${currentBest}). No se modifica.`);
       }
 
-      // Cargar ranking actualizado
+      // Refrescar ranking
       fetchLeaderboard();
       refreshUserUI();
     }
 
     function saveScoreLocal(entry) {
-      let localScores = JSON.parse(localStorage.getItem('jabatazo_local_leaderboard') || '[]');
-      localScores.push(entry);
-      localScores.sort((a, b) => b.score - a.score);
-      localScores = localScores.slice(0, 10);
+      let localScores = getLocalLeaderboard();
+      const name = formatPlayerName(entry.nombre);
+      const scoreVal = Number(entry.score);
+
+      // Buscar si el usuario ya existe en la lista
+      const existingIndex = localScores.findIndex(item => item && formatPlayerName(item.nombre) === name);
+
+      if (existingIndex !== -1) {
+        // Actualizar solo si la nueva puntuación supera su récord previo
+        if (scoreVal >= Number(localScores[existingIndex].score || 0)) {
+          localScores[existingIndex] = { ...entry, nombre: name };
+        }
+      } else {
+        localScores.push({ ...entry, nombre: name });
+      }
+
+      // Consolidar todos los usuarios únicos ordenados de mayor a menor score (sin recortar a 10 aquí)
+      localScores = consolidateLeaderboard(localScores);
       localStorage.setItem('jabatazo_local_leaderboard', JSON.stringify(localScores));
     }
 
@@ -1673,16 +1858,16 @@
       const bestMap = {};
       (list || []).forEach(entry => {
         if (entry && entry.nombre) {
-          const name = entry.nombre.trim();
+          const name = formatPlayerName(entry.nombre);
           const scoreVal = Number(entry.score) || 0;
-          if (!bestMap[name] || scoreVal > bestMap[name].score) {
-            bestMap[name] = { nombre: name, score: scoreVal, fecha: entry.fecha || 0 };
+          if (!bestMap[name] || scoreVal > (bestMap[name].score || 0)) {
+            bestMap[name] = { nombre: name, score: scoreVal, fecha: entry.fecha || Date.now() };
           }
         }
       });
       const uniqueList = Object.values(bestMap);
       uniqueList.sort((a, b) => b.score - a.score);
-      return uniqueList.slice(0, 10);
+      return uniqueList;
     }
 
     function getLocalLeaderboard() {
@@ -1694,18 +1879,7 @@
     }
 
     function updateUserSelectorDropdown() {
-      const userNames = Object.keys(userRecordsMap);
-      if (userNames.length > 0 && playerSelect) {
-        const currentVal = playerSelect.value || localStorage.getItem('jabatazo_player_name');
-        playerSelect.innerHTML = userNames.map(name => {
-          const rec = userRecordsMap[name] || 0;
-          return `<option value="${escapeHtml(name)}">${escapeHtml(name)} (Récord: ${rec})</option>`;
-        }).join('');
-
-        if (currentVal && userRecordsMap[currentVal] !== undefined) {
-          playerSelect.value = currentVal;
-        }
-      }
+      // Sin dropdown abierto
     }
 
     let isFirebaseListenerAttached = false;
@@ -1714,16 +1888,16 @@
       // 1. Mostrar de inmediato la clasificación local en caché (0 ms de delay)
       renderLeaderboardTable(getLocalLeaderboard());
 
-      if (isFirebaseActive && database) {
-        if (dbStatusBadge) {
-          dbStatusBadge.textContent = 'En Vivo 🌐';
-          dbStatusBadge.className = 'text-[10px] px-2 py-0.5 rounded-full font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
+      if (typeof isFirebaseActive !== 'undefined' && isFirebaseActive && typeof database !== 'undefined' && database) {
+        const statusBadge = document.getElementById('db-status-badge');
+        if (statusBadge) {
+          statusBadge.textContent = 'En Vivo 🌐';
+          statusBadge.className = 'text-[10px] px-2 py-0.5 rounded-full font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
         }
 
         if (!isFirebaseListenerAttached) {
           isFirebaseListenerAttached = true;
           try {
-            // Escuchar cambios en tiempo real en la base de datos de Firebase
             database.ref('leaderboard').on('value', (snapshot) => {
               const fbList = [];
               if (snapshot && snapshot.exists()) {
@@ -1754,17 +1928,20 @@
           }
         }
       } else {
-        if (dbStatusBadge) {
-          dbStatusBadge.textContent = 'Modo Local 💾';
-          dbStatusBadge.className = 'text-[10px] px-2 py-0.5 rounded-full font-semibold bg-amber-500/20 text-amber-400 border border-amber-500/30';
+        const statusBadge = document.getElementById('db-status-badge');
+        if (statusBadge) {
+          statusBadge.textContent = 'Modo Local 💾';
+          statusBadge.className = 'text-[10px] px-2 py-0.5 rounded-full font-semibold bg-amber-500/20 text-amber-400 border border-amber-500/30';
         }
         renderLeaderboardTable(getLocalLeaderboard());
       }
     }
 
     function renderLeaderboardTable(rawList) {
-      const list = consolidateLeaderboard(rawList);
+      const fullList = consolidateLeaderboard(rawList);
+      const list = fullList.slice(0, 10); // Mostrar solo el Top 10 en la tabla visual
       const welcomeListEl = document.getElementById('welcome-leaderboard-list');
+      const leaderboardList = document.getElementById('leaderboard-list');
 
       if (!list || list.length === 0) {
         const emptyMsg = '<div class="text-center text-slate-500 py-3 italic text-xs">¡Sé el primero en marcar un récord!</div>';
@@ -1773,9 +1950,9 @@
         return;
       }
 
-      const medals = ['🥇', '🥈', '🥉'];
       const tableHtml = list.map((item, index) => {
-        const isCurrent = item.nombre === playerName && item.score === score;
+        const isCurrent = item.nombre === playerName;
+        const medals = ['🥇', '🥈', '🥉'];
         const rankDisplay = medals[index] || `#${index + 1}`;
         const rowBg = isCurrent ? 'bg-amber-500/20 text-amber-300 font-bold border-l-2 border-amber-400' : 'hover:bg-slate-800/50 text-slate-300';
 
@@ -1802,32 +1979,97 @@
        7. CONTROLADORES DE EVENTOS (TECLADO, TÁCTIL Y BOTONES)
        ========================================================================== */
 
-    // Función de Inicio de Juego ultrarrobusta para móviles y PC
+    // Función de Inicio de Juego ultrarrobusta para móviles y PC con validación de PIN OBLIGATORIO
     function startGame() {
-      // Verificar si se usó la lista desplegable o el cuadro de texto
-      if (containerUserSelect && !containerUserSelect.classList.contains('hidden') && playerSelect && playerSelect.value) {
-        playerName = playerSelect.value;
+      const containerActive = document.getElementById('container-user-active');
+      const pinEl = document.getElementById('player-pin-input');
+      const nameEl = document.getElementById('player-name-input');
+      const pinErrorMsg = document.getElementById('pin-error-msg');
+
+      let targetName = '';
+      const enteredPin = pinEl ? pinEl.value.trim() : '';
+
+      // Si la tarjeta de usuario activo está visible, usar el usuario guardado localmente en este móvil
+      if (containerActive && !containerActive.classList.contains('hidden')) {
+        targetName = formatPlayerName(localStorage.getItem('jabatazo_player_name') || 'JabalíPeñista');
       } else {
-        const inputVal = playerNameInput && playerNameInput.value ? playerNameInput.value.trim() : '';
-        playerName = inputVal || 'JabalíPeñista';
+        const inputVal = nameEl && nameEl.value ? nameEl.value.trim() : '';
+        targetName = formatPlayerName(inputVal || 'JabalíPeñista');
+
+        // OBLIGATORIO: El PIN debe tener 4 dígitos exactos para poder jugar
+        if (!enteredPin || enteredPin.length !== 4 || !/^\d{4}$/.test(enteredPin)) {
+          if (pinEl) {
+            pinEl.classList.remove('border-slate-700', 'border-amber-400');
+            pinEl.classList.add('border-red-500', 'ring-2', 'ring-red-500/80', 'bg-red-950/40', 'animate-pulse');
+            pinEl.focus();
+
+            const clearRed = () => {
+              pinEl.classList.remove('border-red-500', 'ring-2', 'ring-red-500/80', 'bg-red-950/40', 'animate-pulse');
+              pinEl.classList.add('border-slate-700');
+              if (pinErrorMsg) pinErrorMsg.classList.add('hidden');
+              pinEl.removeEventListener('input', clearRed);
+            };
+            pinEl.addEventListener('input', clearRed);
+          }
+          if (pinErrorMsg) pinErrorMsg.classList.remove('hidden');
+          return;
+        }
+
+        if (pinErrorMsg) pinErrorMsg.classList.add('hidden');
+
+        // Comprobar mapa de PINs guardados en este dispositivo o Firebase
+        let userPins = {};
+        try { userPins = JSON.parse(localStorage.getItem('jabatazo_user_pins') || '{}'); } catch(e){}
+
+        const existingRecord = userRecordsMap[targetName];
+
+        // Si el apodo ya existe en la nube/tabla global y el PIN no coincide
+        if (existingRecord !== undefined && userPins[targetName] && userPins[targetName] !== enteredPin) {
+          if (pinEl) {
+            pinEl.classList.add('border-red-500', 'ring-2', 'ring-red-500/80', 'bg-red-950/40');
+          }
+          const invalidTargetEl = document.getElementById('invalid-pin-target-name');
+          const modalInvalidPin = document.getElementById('modal-invalid-pin');
+          if (invalidTargetEl) invalidTargetEl.textContent = targetName;
+          if (modalInvalidPin) modalInvalidPin.classList.remove('hidden');
+          return;
+        }
+
+        // Registrar o actualizar vinculación de PIN
+        userPins[targetName] = enteredPin;
+        localStorage.setItem('jabatazo_user_pins', JSON.stringify(userPins));
+        try {
+          if (typeof isFirebaseActive !== 'undefined' && isFirebaseActive && typeof database !== 'undefined' && database) {
+            database.ref('user_pins/' + targetName).set(enteredPin);
+          }
+        } catch(e){}
       }
 
-      highScore = userRecordsMap[playerName] || parseInt(localStorage.getItem('jabatazo_high_score') || '0', 10);
+      playerName = targetName;
+      highScore = userRecordsMap[playerName] !== undefined ? Number(userRecordsMap[playerName]) : 0;
       userRecordsMap[playerName] = highScore;
+
       localStorage.setItem('jabatazo_user_records', JSON.stringify(userRecordsMap));
       localStorage.setItem('jabatazo_player_name', playerName);
+      localStorage.setItem('jabatazo_high_score', highScore);
 
-      if (hudPlayerName) hudPlayerName.textContent = playerName;
-      if (hudHighScore) hudHighScore.textContent = `RÉCORD: ${String(highScore).padStart(5, '0')}`;
+      const hudNameEl = document.getElementById('hud-player-name');
+      const hudHighEl = document.getElementById('hud-high-score');
+      if (hudNameEl) hudNameEl.textContent = playerName;
+      if (hudHighEl) hudHighEl.textContent = `RÉCORD: ${String(highScore).padStart(5, '0')}`;
 
       try {
         soundEngine.init();
         soundEngine.startBGM();
       } catch (e) {}
 
-      if (modalWelcome) modalWelcome.classList.add('hidden');
-      if (hud) hud.classList.remove('hidden');
-      if (controlsHint) controlsHint.classList.remove('hidden');
+      const mWelcome = document.getElementById('modal-welcome');
+      const hudEl = document.getElementById('hud');
+      const hintEl = document.getElementById('controls-hint');
+
+      if (mWelcome) mWelcome.classList.add('hidden');
+      if (hudEl) hudEl.classList.remove('hidden');
+      if (hintEl) hintEl.classList.remove('hidden');
 
       resetGame();
       gameState = 'PLAYING';
@@ -1841,11 +2083,195 @@
       });
     }
 
+    // Modal & Restablecimiento de PIN desde el Dispositivo Móvil de Origen
+    const btnForgotPin = document.getElementById('btn-forgot-pin');
+    const modalForgotPin = document.getElementById('modal-forgot-pin');
+    const formResetPin = document.getElementById('form-reset-pin');
+    const resetPinInput = document.getElementById('reset-pin-input');
+    const resetPinError = document.getElementById('reset-pin-error');
+    const forgotPinTargetName = document.getElementById('forgot-pin-target-name');
+    const btnCloseResetPin = document.getElementById('btn-close-reset-pin');
+
+    let activeResetTargetName = '';
+
+    if (btnForgotPin) {
+      btnForgotPin.addEventListener('click', () => {
+        const nameEl = document.getElementById('player-name-input');
+        const inputVal = nameEl && nameEl.value ? nameEl.value.trim() : '';
+        const savedPlayer = localStorage.getItem('jabatazo_player_name');
+        
+        const rawTarget = inputVal || savedPlayer || (Object.keys(userRecordsMap)[0] || 'JabalíPeñista');
+        activeResetTargetName = formatPlayerName(rawTarget);
+        const normSavedPlayer = formatPlayerName(savedPlayer);
+
+        // Verificar si este móvil/dispositivo tiene los registros de origen de este apodo
+        let localRecords = {};
+        try { localRecords = JSON.parse(localStorage.getItem('jabatazo_user_records') || '{}'); } catch(e){}
+
+        const isOwnerDevice = localRecords[activeResetTargetName] !== undefined || normSavedPlayer === activeResetTargetName || Object.keys(userRecordsMap).length === 0;
+
+        if (!isOwnerDevice) {
+          showCustomNotice(
+            "DISPOSITIVO NO RECONOCIDO",
+            `El apodo <strong class="text-amber-400 font-bold">${escapeHtml(activeResetTargetName)}</strong> está registrado en otro dispositivo.<br/><br/>Por tu seguridad, para restablecer su PIN debes hacerlo desde el móvil o navegador habitual donde creaste el perfil.`,
+            "🔐",
+            "ENTENDIDO"
+          );
+          return;
+        }
+
+        // Mostrar Modal Bonito de Restablecimiento de PIN
+        if (forgotPinTargetName) forgotPinTargetName.textContent = activeResetTargetName;
+        if (resetPinInput) {
+          resetPinInput.value = '';
+          resetPinInput.classList.remove('border-red-500');
+        }
+        if (resetPinError) resetPinError.classList.add('hidden');
+        if (modalForgotPin) modalForgotPin.classList.remove('hidden');
+        if (resetPinInput) resetPinInput.focus();
+      });
+    }
+
+    if (btnCloseResetPin) {
+      btnCloseResetPin.addEventListener('click', () => {
+        if (modalForgotPin) modalForgotPin.classList.add('hidden');
+      });
+    }
+
+    if (formResetPin) {
+      formResetPin.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const validPin = resetPinInput ? resetPinInput.value.trim() : '';
+
+        if (!validPin || validPin.length !== 4 || !/^\d{4}$/.test(validPin)) {
+          if (resetPinError) resetPinError.classList.remove('hidden');
+          if (resetPinInput) resetPinInput.focus();
+          return;
+        }
+
+        if (resetPinError) resetPinError.classList.add('hidden');
+
+        // Actualizar PIN local y Firebase
+        let userPins = {};
+        try { userPins = JSON.parse(localStorage.getItem('jabatazo_user_pins') || '{}'); } catch(e){}
+        userPins[activeResetTargetName] = validPin;
+        localStorage.setItem('jabatazo_user_pins', JSON.stringify(userPins));
+
+        if (typeof isFirebaseActive !== 'undefined' && isFirebaseActive && typeof database !== 'undefined' && database) {
+          try {
+            database.ref('user_pins/' + activeResetTargetName).set(validPin);
+          } catch(e){}
+        }
+
+        // AUTO-RELLENAR el campo de nombre y el nuevo PIN automáticamente
+        const nameEl = document.getElementById('player-name-input');
+        const pinEl = document.getElementById('player-pin-input');
+        if (nameEl) nameEl.value = activeResetTargetName;
+        if (pinEl) pinEl.value = validPin;
+
+        // Ocultar modal de restablecimiento
+        if (modalForgotPin) modalForgotPin.classList.add('hidden');
+
+        // INICIAR EL JUEGO DIRECTAMENTE CON EL NUEVO PIN
+        startGame();
+      });
+    }
+
+    // Modal de PIN Incorrecto / Acceso Denegado
+    const btnRetryPin = document.getElementById('btn-retry-pin');
+    const modalInvalidPin = document.getElementById('modal-invalid-pin');
+    const btnTriggerForgot = document.getElementById('btn-trigger-forgot-from-invalid');
+
+    if (btnRetryPin) {
+      btnRetryPin.addEventListener('click', () => {
+        if (modalInvalidPin) modalInvalidPin.classList.add('hidden');
+        const pinEl = document.getElementById('player-pin-input');
+        if (pinEl) {
+          pinEl.value = '';
+          pinEl.focus();
+        }
+      });
+    }
+
+    if (btnTriggerForgot) {
+      btnTriggerForgot.addEventListener('click', () => {
+        if (modalInvalidPin) modalInvalidPin.classList.add('hidden');
+        if (btnForgotPin) btnForgotPin.click();
+      });
+    }
+
     const btnStart = document.getElementById('btn-start');
     if (btnStart) {
       btnStart.addEventListener('click', (e) => {
         e.preventDefault();
         startGame();
+      });
+    }
+
+    /* ==========================================================================
+       8. MODALES NOTIFICACIÓN Y CONFIRMACIÓN CUSTOM (REEMPLAZO DE ALERTS)
+       ========================================================================== */
+    function showCustomNotice(title, htmlMessage, icon = '🛡️', buttonText = 'ENTENDIDO') {
+      const noticeModal = document.getElementById('modal-notice');
+      const noticeTitle = document.getElementById('notice-title');
+      const noticeMsg = document.getElementById('notice-msg');
+      const noticeIcon = document.getElementById('notice-icon');
+      const noticeBtn = document.getElementById('btn-notice-close');
+
+      if (noticeTitle) noticeTitle.textContent = title;
+      if (noticeMsg) noticeMsg.innerHTML = htmlMessage;
+      if (noticeIcon) noticeIcon.textContent = icon;
+      if (noticeBtn) {
+        noticeBtn.innerHTML = `<span>${buttonText}</span>`;
+        noticeBtn.onclick = () => {
+          if (noticeModal) noticeModal.classList.add('hidden');
+        };
+      }
+
+      if (noticeModal) noticeModal.classList.remove('hidden');
+    }
+
+    function showCustomConfirm(title, htmlMessage, icon = '🧹', onConfirm) {
+      const confirmModal = document.getElementById('modal-confirm');
+      const confirmTitle = document.getElementById('confirm-title');
+      const confirmMsg = document.getElementById('confirm-msg');
+      const confirmIcon = document.getElementById('confirm-icon');
+      const btnYes = document.getElementById('btn-confirm-yes');
+      const btnNo = document.getElementById('btn-confirm-no');
+
+      if (confirmTitle) confirmTitle.textContent = title;
+      if (confirmMsg) confirmMsg.innerHTML = htmlMessage;
+      if (confirmIcon) confirmIcon.textContent = icon;
+
+      if (btnYes) {
+        btnYes.onclick = () => {
+          if (confirmModal) confirmModal.classList.add('hidden');
+          if (onConfirm) onConfirm();
+        };
+      }
+
+      if (btnNo) {
+        btnNo.onclick = () => {
+          if (confirmModal) confirmModal.classList.add('hidden');
+        };
+      }
+
+      if (confirmModal) confirmModal.classList.remove('hidden');
+    }
+
+    // Botón Útil de Desarrollo: Limpiar Caché Local de Pruebas
+    const btnClearLocal = document.getElementById('btn-clear-localstorage');
+    if (btnClearLocal) {
+      btnClearLocal.addEventListener('click', () => {
+        showCustomConfirm(
+          "LIMPIAR CACHÉ LOCAL",
+          "¿Quieres borrar toda la caché local de este navegador para hacer pruebas desde cero?",
+          "🧹",
+          () => {
+            localStorage.clear();
+            location.reload();
+          }
+        );
       });
     }
 
