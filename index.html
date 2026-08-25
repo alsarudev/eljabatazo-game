@@ -267,16 +267,8 @@
             </div>
           </div>
 
-          <div class="mt-2 text-[10px] text-slate-400 text-center shrink-0 flex items-center justify-between px-1">
-            <span>Móvil: Toca pantalla | PC: Espacio</span>
-            <button 
-              type="button" 
-              id="btn-clear-localstorage" 
-              class="text-red-400/80 hover:text-red-300 underline font-semibold text-[10px] cursor-pointer transition"
-              title="Borrar datos de pruebas locales"
-            >
-              🧹 Limpiar Caché Local
-            </button>
+          <div class="mt-2 text-[10px] text-slate-400 text-center shrink-0">
+            Móvil: Toca pantalla | PC: Espacio
           </div>
         </div>
       </div>
@@ -2327,22 +2319,6 @@
       }
 
       if (confirmModal) confirmModal.classList.remove('hidden');
-    }
-
-    // Botón de Desarrollo: Limpiar Caché Local de Pruebas
-    const btnClearLocal = document.getElementById('btn-clear-localstorage');
-    if (btnClearLocal) {
-      btnClearLocal.addEventListener('click', () => {
-        showCustomConfirm(
-          "LIMPIAR CACHÉ LOCAL",
-          "¿Quieres borrar toda la caché local de este navegador para hacer pruebas desde cero?",
-          "🧹",
-          () => {
-            localStorage.clear();
-            location.reload();
-          }
-        );
-      });
     }
 
     // Botón Reintentar
