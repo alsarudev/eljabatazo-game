@@ -267,16 +267,8 @@
             </div>
           </div>
 
-          <div class="mt-2 text-[10px] text-slate-400 text-center shrink-0 flex items-center justify-between px-1">
-            <span>Móvil: Toca pantalla | PC: Espacio</span>
-            <button 
-              type="button" 
-              id="btn-clear-localstorage" 
-              class="text-red-400/80 hover:text-red-300 underline font-semibold text-[10px] cursor-pointer transition"
-              title="Borrar datos de pruebas locales"
-            >
-              🧹 Limpiar Caché Local
-            </button>
+          <div class="mt-2 text-[10px] text-slate-400 text-center shrink-0">
+            Móvil: Toca pantalla | PC: Espacio
           </div>
         </div>
       </div>
@@ -1672,6 +1664,7 @@
 
     let userRecordsMap = {};
     let userPinsMap = {};
+    let userTokensMap = {};
 
     // Normalización de apodos (Capitalize / Title Case: "tEsT" -> "Test", "FONSI" -> "Fonsi")
     function formatPlayerName(str) {
@@ -1682,6 +1675,19 @@
         if (!word) return '';
         return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
       }).filter(Boolean).join(' ');
+    }
+
+    // Generador / Verificador de Token Secreto de Dispositivo de Origen
+    function getOrCreateDeviceToken(username) {
+      if (!username) return '';
+      const norm = formatPlayerName(username);
+      const key = 'jabatazo_device_token_' + norm;
+      let token = localStorage.getItem(key);
+      if (!token) {
+        token = 'dev_' + Math.random().toString(36).substring(2, 9) + '_' + Date.now().toString(36);
+        localStorage.setItem(key, token);
+      }
+      return token;
     }
 
     function loadUserDatabase() {
@@ -1697,6 +1703,12 @@
         userPinsMap = {};
       }
 
+      try {
+        userTokensMap = JSON.parse(localStorage.getItem('jabatazo_user_tokens') || '{}');
+      } catch(e) {
+        userTokensMap = {};
+      }
+
       // También sincronizar desde el ranking local
       const localScores = getLocalLeaderboard();
       localScores.forEach(entry => {
@@ -1709,6 +1721,20 @@
       // Depurar la caché local para dejar ÚNICAMENTE un registro por usuario (el máximo)
       const cleanedLocal = consolidateLeaderboard(localScores);
       localStorage.setItem('jabatazo_local_leaderboard', JSON.stringify(cleanedLocal));
+
+      // Migración automática transparente para usuarios existentes (Legacy Users)
+      const savedPlayer = localStorage.getItem('jabatazo_player_name');
+      if (savedPlayer) {
+        const normSaved = formatPlayerName(savedPlayer);
+        const deviceToken = getOrCreateDeviceToken(normSaved);
+        userTokensMap[normSaved] = deviceToken;
+        localStorage.setItem('jabatazo_user_tokens', JSON.stringify(userTokensMap));
+        try {
+          if (typeof isFirebaseActive !== 'undefined' && isFirebaseActive && typeof database !== 'undefined' && database) {
+            database.ref('user_tokens/' + normSaved).set(deviceToken);
+          }
+        } catch(e){}
+      }
 
       refreshUserUI();
       fetchLeaderboard(); // Cargar la tabla de clasificación de inmediato en la portada
@@ -2035,12 +2061,18 @@
           return;
         }
 
-        // Registrar o actualizar vinculación de PIN
+        // Registrar o actualizar vinculación de PIN y Token de Dispositivo
         userPins[targetName] = enteredPin;
         localStorage.setItem('jabatazo_user_pins', JSON.stringify(userPins));
+
+        const deviceToken = getOrCreateDeviceToken(targetName);
+        userTokensMap[targetName] = deviceToken;
+        localStorage.setItem('jabatazo_user_tokens', JSON.stringify(userTokensMap));
+
         try {
           if (typeof isFirebaseActive !== 'undefined' && isFirebaseActive && typeof database !== 'undefined' && database) {
             database.ref('user_pins/' + targetName).set(enteredPin);
+            database.ref('user_tokens/' + targetName).set(deviceToken);
           }
         } catch(e){}
       }
@@ -2104,11 +2136,26 @@
         activeResetTargetName = formatPlayerName(rawTarget);
         const normSavedPlayer = formatPlayerName(savedPlayer);
 
-        // Verificar si este móvil/dispositivo tiene los registros de origen de este apodo
-        let localRecords = {};
-        try { localRecords = JSON.parse(localStorage.getItem('jabatazo_user_records') || '{}'); } catch(e){}
+        // REGLA DE SEGURIDAD ESTRICTA:
+        // Solamente el dispositivo móvil que posea la clave secreta local de este apodo puede restablecer el PIN
+        const localDeviceToken = localStorage.getItem('jabatazo_device_token_' + activeResetTargetName);
+        let currentTokens = {};
+        try { currentTokens = JSON.parse(localStorage.getItem('jabatazo_user_tokens') || '{}'); } catch(e){}
+        const cloudToken = currentTokens[activeResetTargetName];
+        let isOwnerDevice = Boolean(localDeviceToken) && (!cloudToken || localDeviceToken === cloudToken);
 
-        const isOwnerDevice = localRecords[activeResetTargetName] !== undefined || normSavedPlayer === activeResetTargetName || Object.keys(userRecordsMap).length === 0;
+        // Migración transparente para cuentas antiguas (Legacy): Si el usuario ya jugaba en este móvil pero no tenía token guardado
+        if (!isOwnerDevice && !cloudToken && (normSavedPlayer === activeResetTargetName || userRecordsMap[activeResetTargetName] !== undefined)) {
+          const newToken = getOrCreateDeviceToken(activeResetTargetName);
+          userTokensMap[activeResetTargetName] = newToken;
+          localStorage.setItem('jabatazo_user_tokens', JSON.stringify(userTokensMap));
+          try {
+            if (typeof isFirebaseActive !== 'undefined' && isFirebaseActive && typeof database !== 'undefined' && database) {
+              database.ref('user_tokens/' + activeResetTargetName).set(newToken);
+            }
+          } catch(e){}
+          isOwnerDevice = true;
+        }
 
         if (!isOwnerDevice) {
           showCustomNotice(
@@ -2257,22 +2304,6 @@
       }
 
       if (confirmModal) confirmModal.classList.remove('hidden');
-    }
-
-    // Botón Útil de Desarrollo: Limpiar Caché Local de Pruebas
-    const btnClearLocal = document.getElementById('btn-clear-localstorage');
-    if (btnClearLocal) {
-      btnClearLocal.addEventListener('click', () => {
-        showCustomConfirm(
-          "LIMPIAR CACHÉ LOCAL",
-          "¿Quieres borrar toda la caché local de este navegador para hacer pruebas desde cero?",
-          "🧹",
-          () => {
-            localStorage.clear();
-            location.reload();
-          }
-        );
-      });
     }
 
     // Botón Reintentar
