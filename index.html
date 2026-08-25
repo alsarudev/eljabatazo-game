@@ -746,16 +746,17 @@
     let lastTime = 0;
     let milestoneCounter = 0;
 
-    // Personaje Jabalí (Salto calibrado: 97px altura, 0.57s duración)
-    const OBSTACLE_STD_HEIGHT = 50; // Altura estándar de TODOS los obstáculos de suelo
+    // Personaje Jabalí — Físicas ESCALADAS al canvas 1000×450
+    // gravity=1.0, jump=-18 → salta 162px (44% del área), duración 0.6s, ligero y reactivo
+    const OBSTACLE_STD_HEIGHT = 50; 
     const boar = {
       x: 110,
       y: GROUND_Y - 60,
       width: 190,
       height: 60,
       vy: 0,
-      gravity: 0.7,           // Gravedad alta → caída con peso inmediato
-      jumpForce: -12,          // Impulso → 97px de altura, sobra 47px sobre obstáculos de 50px
+      gravity: 1.0,
+      jumpForce: -18,
       isGrounded: true,
       legCycle: 0,
       dustParticles: []
@@ -1018,19 +1019,14 @@
       ctx.save();
       ctx.translate(obs.x, obs.y);
 
-      // Si se ha especificado una imagen personalizada (botellin.webp), usarla si es una imagen vertical de botella
+      // Si se ha especificado una imagen personalizada (botellin.webp), usarla
       if (CUSTOM_ASSETS.beerUrl && customBeerImg.complete && customBeerImg.naturalWidth !== 0) {
-        const imgRatio = customBeerImg.naturalWidth / customBeerImg.naturalHeight;
-        if (imgRatio < 1.25) {
-          const renderH = obs.height;
-          const renderW = Math.max(obs.width, Math.round(renderH * imgRatio));
-          ctx.drawImage(customBeerImg, 0, obs.height - renderH, renderW, renderH);
-          ctx.restore();
-          return;
-        }
+        ctx.drawImage(customBeerImg, 0, 0, obs.width, obs.height);
+        ctx.restore();
+        return;
       }
 
-      ctx.scale(obs.width / 52, 1);
+      ctx.scale(obs.width / 52, obs.height / 50);
 
       if (obs.subType === 'BOTTLE') {
         // Botellín de cerveza verde tradicional
@@ -1085,19 +1081,14 @@
       ctx.save();
       ctx.translate(obs.x, obs.y);
 
-      // Si se ha especificado una imagen personalizada (barcelo.webp), usarla si es una imagen vertical de botella
+      // Si se ha especificado una imagen personalizada (barcelo.webp), usarla
       if (CUSTOM_ASSETS.rumUrl && customRumImg.complete && customRumImg.naturalWidth !== 0) {
-        const imgRatio = customRumImg.naturalWidth / customRumImg.naturalHeight;
-        if (imgRatio < 1.25) {
-          const renderH = obs.height;
-          const renderW = Math.max(obs.width, Math.round(renderH * imgRatio));
-          ctx.drawImage(customRumImg, 0, obs.height - renderH, renderW, renderH);
-          ctx.restore();
-          return;
-        }
+        ctx.drawImage(customRumImg, 0, 0, obs.width, obs.height);
+        ctx.restore();
+        return;
       }
 
-      ctx.scale(obs.width / 54, 1);
+      ctx.scale(obs.width / 54, obs.height / 50);
 
       // Dibujo procedimental de Botella de Barceló
       ctx.fillStyle = '#7c2d12';
@@ -1119,15 +1110,14 @@
       ctx.save();
       ctx.translate(obs.x, obs.y);
 
-      // Si se ha especificado una imagen personalizada (guardia.webp), dibujarla con el ancho configurado (200px)
+      // Si se ha especificado una imagen personalizada (guardia.webp), usarla
       if (CUSTOM_ASSETS.policeUrl && customPoliceImg.complete && customPoliceImg.naturalWidth !== 0) {
-        const imgRatio = customPoliceImg.naturalWidth / customPoliceImg.naturalHeight;
-        const renderH = CUSTOM_ASSETS.policeHeight || obs.height || 40;
-        const renderW = CUSTOM_ASSETS.policeWidth || Math.max(200, Math.round(renderH * imgRatio));
-        ctx.drawImage(customPoliceImg, 0, obs.height - renderH, renderW, renderH);
+        ctx.drawImage(customPoliceImg, 0, 0, obs.width, obs.height);
         ctx.restore();
         return;
       }
+
+      ctx.scale(obs.width / 68, obs.height / 50);
 
       // Chasis inferior (Negro)
       ctx.fillStyle = '#1e293b';
@@ -1192,10 +1182,7 @@
 
       // Si se ha especificado una imagen personalizada para el helicóptero (helicoptero.webp)
       if (CUSTOM_ASSETS.helicopterUrl && customHelicopterImg.complete && customHelicopterImg.naturalWidth !== 0) {
-        const imgRatio = customHelicopterImg.naturalWidth / customHelicopterImg.naturalHeight;
-        const renderH = obs.height || 90;
-        const renderW = CUSTOM_ASSETS.helicopterWidth || Math.max(obs.width, Math.round(renderH * imgRatio));
-        ctx.drawImage(customHelicopterImg, 0, 0, renderW, renderH);
+        ctx.drawImage(customHelicopterImg, 0, 0, obs.width, obs.height);
         ctx.restore();
         return;
       }
@@ -1243,13 +1230,12 @@
       ctx.translate(obs.x, obs.y);
 
       if (CUSTOM_ASSETS.chickenUrl && customChickenImg.complete && customChickenImg.naturalWidth !== 0) {
-        const imgRatio = customChickenImg.naturalWidth / customChickenImg.naturalHeight;
-        const renderH = obs.height || 60;
-        const renderW = CUSTOM_ASSETS.chickenWidth || Math.max(obs.width, Math.round(renderH * imgRatio));
-        ctx.drawImage(customChickenImg, 0, 0, renderW, renderH);
+        ctx.drawImage(customChickenImg, 0, 0, obs.width, obs.height);
         ctx.restore();
         return;
       }
+
+      ctx.scale(obs.width / 60, obs.height / 50);
 
       // Dibujo procedimental de Pollo 🐔
       ctx.fillStyle = '#f87171';
@@ -1427,6 +1413,8 @@
       }
     }
 
+    const OBSTACLE_STD_WIDTH = 80; // Ancho único y justo para TODOS
+
     function createSingleObstacle(type, xOffset) {
       if (type === 'HELICOPTER') {
         const hWidth = CUSTOM_ASSETS.helicopterWidth || 280;
@@ -1438,39 +1426,35 @@
           height: 75
         };
       } else if (type === 'CHICKEN') {
-        const cWidth = CUSTOM_ASSETS.chickenWidth || 70;
         return {
           type: 'CHICKEN',
           x: xOffset,
           y: GROUND_Y - OBSTACLE_STD_HEIGHT,
-          width: cWidth,
+          width: OBSTACLE_STD_WIDTH,
           height: OBSTACLE_STD_HEIGHT
         };
       } else if (type === 'POLICE') {
-        const pWidth = CUSTOM_ASSETS.policeWidth || 160;
         return {
           type: 'POLICE',
           x: xOffset,
           y: GROUND_Y - OBSTACLE_STD_HEIGHT,
-          width: pWidth,
+          width: OBSTACLE_STD_WIDTH,
           height: OBSTACLE_STD_HEIGHT
         };
       } else if (type === 'BEER') {
-        const bWidth = CUSTOM_ASSETS.beerWidth || 104;
         return {
           type: 'BEER',
           x: xOffset,
           y: GROUND_Y - OBSTACLE_STD_HEIGHT,
-          width: bWidth,
+          width: OBSTACLE_STD_WIDTH,
           height: OBSTACLE_STD_HEIGHT
         };
       } else {
-        const rWidth = CUSTOM_ASSETS.rumWidth || 108;
         return {
           type: 'RUM',
           x: xOffset,
           y: GROUND_Y - OBSTACLE_STD_HEIGHT,
-          width: rWidth,
+          width: OBSTACLE_STD_WIDTH,
           height: OBSTACLE_STD_HEIGHT
         };
       }
@@ -1502,9 +1486,10 @@
     }
 
     function checkCollision(rect1, rect2) {
-      // Hitboxes 15% más pequeñas que el sprite visual → tolerancia justa
-      const shrink1X = rect1.width * 0.15;
-      const shrink1Y = rect1.height * 0.15;
+      // Jabalí (rect1): 35% shrink horizontal — sprite 190px pero cuerpo real ~57px
+      const shrink1X = rect1.width * 0.35;
+      const shrink1Y = rect1.height * 0.20;
+      // Obstáculo (rect2): 15% shrink — tolerancia estándar
       const shrink2X = rect2.width * 0.15;
       const shrink2Y = rect2.height * 0.15;
 
