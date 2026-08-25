@@ -877,7 +877,7 @@
 
       // 7. Imagen de recompensa de Jesús (Escudo)
       jesusUrl: 'jesus.webp',
-      jesusWidth: 120,
+      jesusWidth: 60,
 
       // 8. Imagen de Fondo / Escenario (fondo_encinar.webp)
       backgroundUrl: 'fondo_encinar.webp',
@@ -1317,10 +1317,23 @@
       ctx.shadowBlur = 10 + glow;
 
       if (CUSTOM_ASSETS.jesusUrl && customJesusImg.complete && customJesusImg.naturalWidth !== 0) {
+        // Escalar la imagen al tamaño del hitbox manteniendo proporciones reales
         const imgRatio = customJesusImg.naturalWidth / customJesusImg.naturalHeight;
-        const renderW = obs.height * imgRatio;
+        let renderW = obs.width;
+        let renderH = obs.height;
+        
+        if (imgRatio > 1) {
+          // Más ancha que alta
+          renderH = obs.width / imgRatio;
+        } else {
+          // Más alta que ancha
+          renderW = obs.height * imgRatio;
+        }
+        
         const renderX = (obs.width - renderW) / 2;
-        ctx.drawImage(customJesusImg, renderX, 0, renderW, obs.height);
+        const renderY = (obs.height - renderH) / 2;
+        
+        ctx.drawImage(customJesusImg, renderX, renderY, renderW, renderH);
       } else {
         // Fallback procedimental (una cruz dorada brillante)
         ctx.fillStyle = '#fbbf24';
@@ -1540,9 +1553,9 @@
         return {
           type: 'JESUS',
           x: xOffset,
-          y: GROUND_Y - 180, // Subido para compensar el tamaño gigante y obligar a saltar
-          width: CUSTOM_ASSETS.jesusWidth || 120,
-          height: CUSTOM_ASSETS.jesusWidth || 120
+          y: GROUND_Y - 140, // Altura que requiere salto pero sin ser inalcanzable
+          width: 60,         // Mismo tamaño que la altura del jabalí
+          height: 60         // Mismo tamaño que la altura del jabalí
         };
       } else if (type === 'CHICKEN') {
         return {
